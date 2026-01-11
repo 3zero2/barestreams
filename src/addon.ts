@@ -1,7 +1,9 @@
 import { addonBuilder } from "stremio-addon-sdk";
 import { getCache, setCache } from "./cache/redis.js";
 import { parseStremioId, type ParsedStremioId } from "./parsing/stremioId.js";
-import { BadRequestError } from "./types.js";
+import { scrapeEztvStreams } from "./scrapers/eztv.js";
+import type { AppConfig } from "./config.js";
+import { BadRequestError, type StreamResponse } from "./types.js";
 
 export const CACHE_TTL_SECONDS = 604800;
 
@@ -31,24 +33,26 @@ const buildCacheKey = (type: string, parsed: ParsedStremioId): string => {
   return `stream:series:${parsed.baseId}`;
 };
 
-const builder = new addonBuilder(manifest);
+export const createAddonInterface = (config: AppConfig) => {
+  const builder = new addonBuilder(manifest);
 
-builder.defineStreamHandler(async ({ type, id }) => {
-  if (type !== "movie" && type !== "series") {
-    throw new BadRequestError("Invalid type");
-  }
+  builder.defineStreamHandler(async ({ type, id }) => {
+    if (type !== "movie" && type !== "series") {
+      throw new BadRequestError("Invalid type");
+    }
 
-  const parsed = parseStremioId(id);
-  const key = buildCacheKey(type, parsed);
-  const cached = await getCache(key);
+    const parsed = parseStremioId(id);
+    const key = buildCacheKey(type, parsed);
+    const cached = await getCache(key);
 
-  if (cached) {
-    return JSON.parse(cached);
-  }
+    if (cached) {
+      return JSON.parse(cached) as StreamResponse;
+    }
 
-  const response = { streams: [] };
-  await setCache(key, JSON.stringify(response), CACHE_TTL_SECONDS);
-  return response;
-});
+    const response = await scrapeEztvStreams(parsed, config.eztvUrls);
+    await setCache(key, JSON.stringify(response), CACHE_TTL_SECONDS);
+    return response;
+  });
 
-export const addonInterface = builder.getInterface();
+  return builder.getInterface();
+};

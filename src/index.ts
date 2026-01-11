@@ -1,5 +1,5 @@
 import * as http from "node:http";
-import { addonInterface } from "./addon.js";
+import { createAddonInterface } from "./addon.js";
 import { loadConfig } from "./config.js";
 import { initRedis } from "./cache/redis.js";
 import { BadRequestError } from "./types.js";
@@ -18,6 +18,7 @@ const sendJson = (res: http.ServerResponse, statusCode: number, body: unknown): 
 const start = async (): Promise<void> => {
   const config = loadConfig();
   await initRedis(config.redisUrl);
+  const addonInterface = createAddonInterface(config);
 
   const server = http.createServer(async (req, res) => {
     if (!req.url || req.method !== "GET") {

@@ -4,3 +4,13 @@ export class BadRequestError extends Error {
     this.name = "BadRequestError";
   }
 }
+
+export type Stream = {
+  name: string;
+  title: string;
+  url: string;
+};
+
+export type StreamResponse = {
+  streams: Stream[];
+};

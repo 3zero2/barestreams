@@ -28,6 +28,11 @@ Addon will be available at:
 
 - http://localhost:80/manifest.json
 
+## Configuration
+
+- `REDIS_URL`: Redis connection string.
+- `EZTV_URL`: Comma-separated list of EZTV base URLs to try in order.
+
 ## Stremio install
 
 Add the addon using:
