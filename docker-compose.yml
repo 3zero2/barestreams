@@ -14,5 +14,6 @@ services:
       - REDIS_URL=redis://redis:6379
       - EZTV_URL=https://eztv.re
       - YTS_URL=https://yts.mx
+      - TGX_URL=https://torrentgalaxy.hair
     ports:
       - "19080:80"

@@ -2,6 +2,7 @@ export type AppConfig = {
   redisUrl: string;
   eztvUrls: string[];
   ytsUrls: string[];
+  tgxUrls: string[];
 };
 
 const parseUrls = (raw: string): string[] =>
@@ -28,5 +29,11 @@ export const loadConfig = (): AppConfig => {
     throw new Error("YTS_URL must contain at least one URL");
   }
 
-  return { redisUrl, eztvUrls, ytsUrls };
+  const tgxRaw = process.env.TGX_URL || "";
+  const tgxUrls = parseUrls(tgxRaw);
+  if (tgxUrls.length === 0) {
+    throw new Error("TGX_URL must contain at least one URL");
+  }
+
+  return { redisUrl, eztvUrls, ytsUrls, tgxUrls };
 };

@@ -21,7 +21,7 @@ Addon will be available at:
 
 ```bash
 npm install
-REDIS_URL=redis://localhost:6379 EZTV_URL=https://eztv.re YTS_URL=https://yts.mx npm run dev
+REDIS_URL=redis://localhost:6379 EZTV_URL=https://eztv.re YTS_URL=https://yts.mx TGX_URL=https://torrentgalaxy.hair npm run dev
 ```
 
 Addon will be available at:
@@ -33,6 +33,12 @@ Addon will be available at:
 - `REDIS_URL`: Redis connection string.
 - `EZTV_URL`: Comma-separated list of EZTV base URLs to try in order.
 - `YTS_URL`: Comma-separated list of YTS base URLs to try in order.
+- `TGX_URL`: Comma-separated list of TorrentGalaxy base URLs to try in order.
+
+## IMDb datasets
+
+On startup the addon downloads and extracts the IMDb TSV datasets into `data/imdb`. If the files are older
+than 24 hours they are refreshed in the background.
 
 ## Stremio install
 

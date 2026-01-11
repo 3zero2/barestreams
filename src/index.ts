@@ -2,6 +2,7 @@ import * as http from "node:http";
 import { createAddonInterface } from "./addon.js";
 import { loadConfig } from "./config.js";
 import { initRedis } from "./cache/redis.js";
+import { ensureImdbDatasets } from "./imdb/index.js";
 import { BadRequestError } from "./types.js";
 
 const PORT = 80;
@@ -18,6 +19,7 @@ const sendJson = (res: http.ServerResponse, statusCode: number, body: unknown): 
 const start = async (): Promise<void> => {
   const config = loadConfig();
   await initRedis(config.redisUrl);
+  await ensureImdbDatasets();
   const addonInterface = createAddonInterface(config);
 
   const server = http.createServer(async (req, res) => {

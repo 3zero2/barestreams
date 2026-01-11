@@ -10,6 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
     "redis": "^4.6.13",
     "stremio-addon-sdk": "^1.6.10"
   },
