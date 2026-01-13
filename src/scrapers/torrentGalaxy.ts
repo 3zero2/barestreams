@@ -278,6 +278,7 @@ export const scrapeTorrentGalaxyStreams = async (
         name: "TGx",
         title: link.name,
         description: formatTitle(link),
+        url: magnet,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources.length ? parsedMagnet.sources : undefined,
         seeders: link.seeders

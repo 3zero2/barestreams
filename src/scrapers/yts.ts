@@ -61,6 +61,18 @@ const buildListUrl = (baseUrl: string, imdbId: string): string => {
   return `${apiRoot}/list_movies.json?${params.toString()}`;
 };
 
+const buildMagnetUrl = (infoHash: string, displayName: string): string => {
+  const params = new URLSearchParams();
+  params.set("xt", `urn:btih:${infoHash}`);
+  if (displayName) {
+    params.set("dn", displayName);
+  }
+  for (const tracker of TRACKERS) {
+    params.append("tr", tracker);
+  }
+  return `magnet:?${params.toString()}`;
+};
+
 const formatTitle = (movie: YtsMovie, torrent: YtsTorrent): string => {
   const baseTitle = movie.title_long || movie.title || "YTS";
   const sizeGiB = torrent.size_bytes ? torrent.size_bytes / (1024 * 1024 * 1024) : 0;
@@ -115,6 +127,7 @@ export const scrapeYtsStreams = async (
         name: "YTS",
         title: displayName,
         description: formatTitle(movie, torrent),
+        url: buildMagnetUrl(torrent.hash.toLowerCase(), displayName),
         infoHash: torrent.hash.toLowerCase(),
         sources: TRACKER_SOURCES,
         seeders: torrent.seeds

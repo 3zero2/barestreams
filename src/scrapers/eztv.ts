@@ -344,6 +344,7 @@ const scrapeSearchStreams = async (
         name: "EZTV",
         title,
         description: title,
+        url: magnet,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources.length ? parsedMagnet.sources : undefined
       };
@@ -450,6 +451,7 @@ export const scrapeEztvStreams = async (
         name: "EZTV",
         title: torrent.title ?? torrent.filename ?? "EZTV",
         description: formatTitle(torrent),
+        url: magnet,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources.length ? parsedMagnet.sources : undefined,
         seeders: torrent.seeds
