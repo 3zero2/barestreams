@@ -9,6 +9,7 @@ export type Stream = {
   name: string;
   title: string;
   url: string;
+  seeders?: number;
 };
 
 export type StreamResponse = {

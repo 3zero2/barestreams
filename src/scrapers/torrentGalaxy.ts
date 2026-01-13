@@ -182,6 +182,8 @@ const dedupeLinks = (links: TorrentGalaxyLink[]): TorrentGalaxyLink[] => {
   return results;
 };
 
+const sortBySeedersDesc = (a: TorrentGalaxyLink, b: TorrentGalaxyLink): number => b.seeders - a.seeders;
+
 const parseEpisodeFromText = (text: string): { season: number; episode: number } | null => {
   const normalized = text.replace(/\s+/g, " ").trim();
   const match = normalized.match(/S(\d{1,2})E(\d{1,2})/i) ?? normalized.match(/(\d{1,2})x(\d{1,2})/i);
@@ -245,14 +247,15 @@ export const scrapeTorrentGalaxyStreams = async (
   }
 
   const uniqueLinks = dedupeLinks(filteredLinks);
+  const sortedLinks = uniqueLinks.slice().sort(sortBySeedersDesc);
   if (DEBUG) {
-    console.warn(`[TGx] ${uniqueLinks.length} links after filtering`);
+    console.warn(`[TGx] ${sortedLinks.length} links after filtering`);
   }
   const detailResults = await Promise.allSettled(
-    uniqueLinks.map((link) => fetchTorrentDetails(link.url))
+    sortedLinks.map((link) => fetchTorrentDetails(link.url))
   );
 
-  const streams = uniqueLinks
+  const streams = sortedLinks
     .map((link, index) => {
       const detailResult = detailResults[index];
       if (detailResult.status !== "fulfilled") {
@@ -269,7 +272,8 @@ export const scrapeTorrentGalaxyStreams = async (
       return {
         name: "TGx",
         title: formatTitle(link),
-        url
+        url,
+        seeders: link.seeders
       };
     })
     .filter((stream): stream is NonNullable<typeof stream> => Boolean(stream));

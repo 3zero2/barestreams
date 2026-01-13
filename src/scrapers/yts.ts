@@ -78,6 +78,12 @@ const buildMagnet = (hash: string, name: string): string => {
   return `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(name)}${trackers}`;
 };
 
+const sortBySeedsDesc = (a: YtsTorrent, b: YtsTorrent): number => {
+  const aSeeds = typeof a.seeds === "number" ? a.seeds : 0;
+  const bSeeds = typeof b.seeds === "number" ? b.seeds : 0;
+  return bSeeds - aSeeds;
+};
+
 export const scrapeYtsStreams = async (
   parsed: ParsedStremioId,
   ytsUrls: string[]
@@ -100,7 +106,7 @@ export const scrapeYtsStreams = async (
   const seen = new Set<string>();
   const streams = matchingMovies
     .flatMap((movie) =>
-      (movie.torrents ?? []).map((torrent) => ({ movie, torrent }))
+      (movie.torrents ?? []).slice().sort(sortBySeedsDesc).map((torrent) => ({ movie, torrent }))
     )
     .map(({ movie, torrent }) => {
       const key = torrent.hash;
@@ -112,7 +118,8 @@ export const scrapeYtsStreams = async (
       return {
         name: "YTS",
         title: formatTitle(movie, torrent),
-        url: buildMagnet(torrent.hash, displayName)
+        url: buildMagnet(torrent.hash, displayName),
+        seeders: torrent.seeds
       };
     })
     .filter((stream): stream is NonNullable<typeof stream> => Boolean(stream));

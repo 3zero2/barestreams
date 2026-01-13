@@ -379,6 +379,12 @@ const formatTitle = (torrent: EztvTorrent): string => {
   return `${baseTitle} (${parts.join(" • ")})`;
 };
 
+const sortBySeedsDesc = (a: EztvTorrent, b: EztvTorrent): number => {
+  const aSeeds = typeof a.seeds === "number" ? a.seeds : 0;
+  const bSeeds = typeof b.seeds === "number" ? b.seeds : 0;
+  return bSeeds - aSeeds;
+};
+
 export const scrapeEztvStreams = async (
   parsed: ParsedStremioId,
   eztvUrls: string[]
@@ -412,6 +418,8 @@ export const scrapeEztvStreams = async (
 
   const seen = new Set<string>();
   const streams = torrents
+    .slice()
+    .sort(sortBySeedsDesc)
     .filter((torrent) => matchesTitle(torrent, titleCandidates))
     .filter((torrent) => matchesEpisode(torrent, parsed.season, parsed.episode))
     .map((torrent) => {
@@ -426,7 +434,8 @@ export const scrapeEztvStreams = async (
       return {
         name: "EZTV",
         title: formatTitle(torrent),
-        url
+        url,
+        seeders: torrent.seeds
       };
     })
     .filter((stream): stream is NonNullable<typeof stream> => Boolean(stream));

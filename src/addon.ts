@@ -20,6 +20,12 @@ export const manifest = {
   catalogs: []
 };
 
+const sortBySeedersDesc = (a: { seeders?: number }, b: { seeders?: number }): number => {
+  const aSeeds = typeof a.seeders === "number" ? a.seeders : 0;
+  const bSeeds = typeof b.seeders === "number" ? b.seeders : 0;
+  return bSeeds - aSeeds;
+};
+
 const buildCacheKey = (type: string, parsed: ParsedStremioId): string => {
   if (type === "movie") {
     return `stream:movie:${parsed.baseId}`;
@@ -78,7 +84,7 @@ export const createAddonInterface = (config: AppConfig) => {
       });
     });
 
-    const response: StreamResponse = { streams };
+    const response: StreamResponse = { streams: streams.slice().sort(sortBySeedersDesc) };
     await setCache(key, JSON.stringify(response), CACHE_TTL_SECONDS);
     return response;
   });
