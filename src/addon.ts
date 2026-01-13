@@ -16,7 +16,8 @@ export const manifest = {
   description: "On-demand streams addon",
   resources: ["stream"],
   types: ["movie", "series"],
-  idPrefixes: ["tt"]
+  idPrefixes: ["tt"],
+  catalogs: []
 };
 
 const buildCacheKey = (type: string, parsed: ParsedStremioId): string => {

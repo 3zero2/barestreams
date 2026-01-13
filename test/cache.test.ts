@@ -6,10 +6,12 @@ describe("redis cache", () => {
     await closeRedis();
   });
 
-  it("sets and gets a value", async () => {
+  const itWithRedis = process.env.REDIS_URL ? it : it.skip;
+
+  itWithRedis("sets and gets a value", async () => {
     const redisUrl = process.env.REDIS_URL;
     if (!redisUrl) {
-      throw new Error("REDIS_URL is required for cache test");
+      return;
     }
 
     await initRedis(redisUrl);
