@@ -23,13 +23,6 @@ type YtsResponse = {
   };
 };
 
-const TRACKERS = [
-  "udp://open.stealth.si:80/announce",
-  "udp://tracker.opentrackr.org:1337/announce",
-  "udp://9.rarbg.to:2930/announce"
-];
-const TRACKER_SOURCES = TRACKERS.map((tracker) => `tracker:${tracker}`);
-
 const normalizeBaseUrl = (baseUrl: string): string => baseUrl.replace(/\/+$/, "");
 
 const ensureApiRoot = (baseUrl: string): string =>
@@ -59,18 +52,6 @@ const buildListUrl = (baseUrl: string, imdbId: string): string => {
   const apiRoot = ensureApiRoot(normalized);
   const params = new URLSearchParams({ query_term: imdbId, limit: "1" });
   return `${apiRoot}/list_movies.json?${params.toString()}`;
-};
-
-const buildMagnetUrl = (infoHash: string, displayName: string): string => {
-  const params = new URLSearchParams();
-  params.set("xt", `urn:btih:${infoHash}`);
-  if (displayName) {
-    params.set("dn", displayName);
-  }
-  for (const tracker of TRACKERS) {
-    params.append("tr", tracker);
-  }
-  return `magnet:?${params.toString()}`;
 };
 
 const formatTitle = (movie: YtsMovie, torrent: YtsTorrent): string => {
@@ -127,9 +108,7 @@ export const scrapeYtsStreams = async (
         name: "YTS",
         title: displayName,
         description: formatTitle(movie, torrent),
-        url: buildMagnetUrl(torrent.hash.toLowerCase(), displayName),
         infoHash: torrent.hash.toLowerCase(),
-        sources: TRACKER_SOURCES,
         seeders: torrent.seeds
       };
     })

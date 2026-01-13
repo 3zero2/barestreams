@@ -6,7 +6,7 @@ import { scrapeEztvStreams } from "./scrapers/eztv.js";
 import { scrapeTorrentGalaxyStreams } from "./scrapers/torrentGalaxy.js";
 import { scrapeYtsStreams } from "./scrapers/yts.js";
 import type { AppConfig } from "./config.js";
-import { BadRequestError, type StreamResponse } from "./types.js";
+import { BadRequestError, type Stream, type StreamResponse } from "./types.js";
 import { getTitleBasics } from "./imdb/index.js";
 
 export const CACHE_TTL_SECONDS = 604800;
@@ -56,6 +56,11 @@ const summarizeSources = (streams: StreamResponse["streams"]): Record<string, nu
     counts.set(source, (counts.get(source) ?? 0) + 1);
   }
   return Object.fromEntries(counts);
+};
+
+const stripStreamExtras = (stream: Stream): Stream => {
+  const { seeders, sources, ...rest } = stream;
+  return rest;
 };
 
 const logStreamRequest = (params: {
@@ -135,7 +140,8 @@ export const createAddonInterface = (config: AppConfig) => {
       });
     });
 
-    const response: StreamResponse = { streams: streams.slice().sort(sortBySeedersDesc) };
+    const sortedStreams = streams.slice().sort(sortBySeedersDesc);
+    const response: StreamResponse = { streams: sortedStreams.map(stripStreamExtras) };
     await setCache(key, JSON.stringify(response), CACHE_TTL_SECONDS);
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
     logStreamRequest({
