@@ -14,9 +14,13 @@ type EztvTorrent = {
 
 type EztvResponse = {
   torrents?: EztvTorrent[];
+  torrents_count?: number;
+  limit?: number;
+  page?: number;
 };
 
 const normalizeBaseUrl = (baseUrl: string): string => baseUrl.replace(/\/+$/, "");
+const DEBUG = process.env.DEBUG_EZTV === "1";
 
 const fetchJson = async (url: string): Promise<EztvResponse | null> => {
   const controller = new AbortController();
@@ -27,10 +31,25 @@ const fetchJson = async (url: string): Promise<EztvResponse | null> => {
       signal: controller.signal
     });
     if (!response.ok) {
+      if (DEBUG) {
+        console.warn(`[EZTV] ${response.status} ${response.statusText} for ${url}`);
+      }
       return null;
     }
-    return (await response.json()) as EztvResponse;
-  } catch {
+    const data = (await response.json()) as EztvResponse;
+    if (DEBUG) {
+      const count = data.torrents?.length ?? 0;
+      const total = data.torrents_count ?? "n/a";
+      const page = data.page ?? "n/a";
+      const limit = data.limit ?? "n/a";
+      console.warn(`[EZTV] ${url} returned ${count} torrents (page=${page} limit=${limit} total=${total})`);
+    }
+    return data;
+  } catch (err) {
+    if (DEBUG) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`[EZTV] fetch failed for ${url}: ${message}`);
+    }
     return null;
   } finally {
     clearTimeout(timeout);
@@ -38,6 +57,78 @@ const fetchJson = async (url: string): Promise<EztvResponse | null> => {
 };
 
 const getImdbDigits = (baseId: string): string => baseId.replace(/^tt/, "");
+const DEFAULT_LIMIT = 30;
+const MAX_PAGES = 50;
+
+const buildApiUrl = (baseUrl: string, imdbId: string, page: number): string => {
+  const normalized = normalizeBaseUrl(baseUrl);
+  const url = new URL(`${normalized}/api/get-torrents`);
+  url.searchParams.set("imdb_id", imdbId);
+  url.searchParams.set("page", String(page));
+  return url.toString();
+};
+
+const fetchAllTorrents = async (baseUrl: string, imdbId: string): Promise<EztvTorrent[]> => {
+  const torrents: EztvTorrent[] = [];
+  let page = 1;
+  let expectedTotal: number | null = null;
+  let pageLimit = DEFAULT_LIMIT;
+
+  while (page <= MAX_PAGES) {
+    const url = buildApiUrl(baseUrl, imdbId, page);
+    if (DEBUG) {
+      console.warn(`[EZTV] fetching ${url}`);
+    }
+    const response = await fetchJson(url);
+    if (!response) {
+      break;
+    }
+
+    const batch = response.torrents ?? [];
+    torrents.push(...batch);
+
+    if (expectedTotal === null && typeof response.torrents_count === "number") {
+      expectedTotal = response.torrents_count;
+    }
+    if (typeof response.limit === "number" && response.limit > 0) {
+      pageLimit = response.limit;
+    }
+
+    if (batch.length === 0) {
+      break;
+    }
+    if (expectedTotal !== null && torrents.length >= expectedTotal) {
+      break;
+    }
+    if (batch.length < pageLimit) {
+      break;
+    }
+    page += 1;
+  }
+
+  if (DEBUG) {
+    console.warn(`[EZTV] fetched ${torrents.length} torrents across ${page} page(s)`);
+  }
+
+  return torrents;
+};
+
+const parseEpisodeFromText = (text: string): { season: number; episode: number } | null => {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const match =
+    normalized.match(/S(?:eason)?\s*0?(\d{1,2})\s*E(?:pisode)?\s*0?(\d{1,2})/i) ??
+    normalized.match(/S(\d{1,2})\s*E(\d{1,2})/i) ??
+    normalized.match(/(\d{1,2})x(\d{1,2})/i);
+  if (!match) {
+    return null;
+  }
+  const season = Number(match[1]);
+  const episode = Number(match[2]);
+  if (!Number.isFinite(season) || !Number.isFinite(episode)) {
+    return null;
+  }
+  return { season, episode };
+};
 
 const matchesEpisode = (torrent: EztvTorrent, season?: number, episode?: number): boolean => {
   if (!season || !episode) {
@@ -46,7 +137,16 @@ const matchesEpisode = (torrent: EztvTorrent, season?: number, episode?: number)
 
   const torrentSeason = Number(torrent.season);
   const torrentEpisode = Number(torrent.episode);
-  return torrentSeason === season && torrentEpisode === episode;
+  if (torrentSeason > 0 && torrentEpisode > 0) {
+    return torrentSeason === season && torrentEpisode === episode;
+  }
+
+  const text = torrent.title ?? torrent.filename ?? "";
+  const parsed = text ? parseEpisodeFromText(text) : null;
+  if (!parsed) {
+    return false;
+  }
+  return parsed.season === season && parsed.episode === episode;
 };
 
 const formatTitle = (torrent: EztvTorrent): string => {
@@ -71,11 +171,13 @@ export const scrapeEztvStreams = async (
   eztvUrls: string[]
 ): Promise<StreamResponse> => {
   const imdbDigits = getImdbDigits(parsed.baseId);
+  if (DEBUG) {
+    console.warn(`[EZTV] imdb=${imdbDigits} season=${parsed.season ?? "n/a"} episode=${parsed.episode ?? "n/a"}`);
+  }
   const responses = await Promise.allSettled(
-    eztvUrls.map((baseUrl) => {
-      const normalized = normalizeBaseUrl(baseUrl);
-      const url = `${normalized}/api/get-torrents?imdb_id=${imdbDigits}`;
-      return fetchJson(url);
+    eztvUrls.flatMap((baseUrl) => {
+      const imdbIds = [imdbDigits, `tt${imdbDigits}`];
+      return imdbIds.map((imdbId) => fetchAllTorrents(baseUrl, imdbId));
     })
   );
 
@@ -83,7 +185,7 @@ export const scrapeEztvStreams = async (
     if (result.status !== "fulfilled") {
       return [];
     }
-    return result.value?.torrents ?? [];
+    return result.value;
   });
 
   const seen = new Set<string>();
@@ -106,5 +208,30 @@ export const scrapeEztvStreams = async (
     })
     .filter((stream): stream is NonNullable<typeof stream> => Boolean(stream));
 
+  if (DEBUG) {
+    console.warn(`[EZTV] ${streams.length} streams after filtering`);
+    if (streams.length === 0 && torrents.length > 0) {
+      const sample = torrents.slice(0, 5).map((torrent) => ({
+        title: torrent.title ?? torrent.filename ?? "n/a",
+        season: torrent.season,
+        episode: torrent.episode
+      }));
+      console.warn("[EZTV] sample torrents:", sample);
+      const seasonHints = torrents
+        .filter((torrent) => {
+          const title = (torrent.title ?? torrent.filename ?? "").toLowerCase();
+          return title.includes("s02") || title.includes("season 2") || title.includes(" 2x");
+        })
+        .slice(0, 5)
+        .map((torrent) => ({
+          title: torrent.title ?? torrent.filename ?? "n/a",
+          season: torrent.season,
+          episode: torrent.episode
+        }));
+      if (seasonHints.length > 0) {
+        console.warn("[EZTV] season-2-ish torrents:", seasonHints);
+      }
+    }
+  }
   return { streams };
 };

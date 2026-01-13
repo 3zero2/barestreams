@@ -17,6 +17,7 @@ type TorrentGalaxyDetails = {
 };
 
 const normalizeBaseUrl = (baseUrl: string): string => baseUrl.replace(/\/+$/, "");
+const DEBUG = process.env.DEBUG_TGX === "1";
 
 const fetchHtml = async (url: string): Promise<string | null> => {
   const controller = new AbortController();
@@ -120,6 +121,13 @@ const isSeriesTitleType = (titleType?: string): boolean => {
   return normalized === "tvseries" || normalized === "tvminiseries" || normalized === "tvepisode";
 };
 
+const normalizeQuery = (value: string): string => {
+  return value
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
 const formatEpisodeSuffix = (season?: number, episode?: number): string | null => {
   if (!season || !episode) {
     return null;
@@ -129,16 +137,18 @@ const formatEpisodeSuffix = (season?: number, episode?: number): string | null =
   return `S${seasonStr}E${episodeStr}`;
 };
 
-const buildQuery = async (parsed: ParsedStremioId): Promise<string> => {
+const buildQueries = async (
+  parsed: ParsedStremioId
+): Promise<{ baseTitle: string; query: string; episodeSuffix: string | null }> => {
   const basics = await getTitleBasics(parsed.baseId);
   const baseTitle = basics?.primaryTitle || basics?.originalTitle || parsed.baseId;
   const episodeSuffix = formatEpisodeSuffix(parsed.season, parsed.episode);
   const isSeries = isSeriesTitleType(basics?.titleType) || Boolean(episodeSuffix);
 
   if (isSeries && episodeSuffix) {
-    return `${baseTitle} ${episodeSuffix}`;
+    return { baseTitle, query: normalizeQuery(`${baseTitle} ${episodeSuffix}`), episodeSuffix };
   }
-  return baseTitle;
+  return { baseTitle, query: normalizeQuery(baseTitle), episodeSuffix: null };
 };
 
 const formatTitle = (link: TorrentGalaxyLink): string => {
@@ -172,22 +182,72 @@ const dedupeLinks = (links: TorrentGalaxyLink[]): TorrentGalaxyLink[] => {
   return results;
 };
 
+const parseEpisodeFromText = (text: string): { season: number; episode: number } | null => {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const match = normalized.match(/S(\d{1,2})E(\d{1,2})/i) ?? normalized.match(/(\d{1,2})x(\d{1,2})/i);
+  if (!match) {
+    return null;
+  }
+  const season = Number(match[1]);
+  const episode = Number(match[2]);
+  if (!Number.isFinite(season) || !Number.isFinite(episode)) {
+    return null;
+  }
+  return { season, episode };
+};
+
+const matchesEpisode = (name: string, season?: number, episode?: number): boolean => {
+  if (!season || !episode) {
+    return true;
+  }
+  const parsed = parseEpisodeFromText(name);
+  if (!parsed) {
+    return false;
+  }
+  return parsed.season === season && parsed.episode === episode;
+};
+
 export const scrapeTorrentGalaxyStreams = async (
   parsed: ParsedStremioId,
   tgxUrls: string[]
 ): Promise<StreamResponse> => {
-  const query = await buildQuery(parsed);
+  const { baseTitle, query, episodeSuffix } = await buildQueries(parsed);
   const links: TorrentGalaxyLink[] = [];
 
   for (const baseUrl of tgxUrls) {
     if (links.length >= 20) {
       break;
     }
+    if (DEBUG) {
+      console.warn(`[TGx] searching ${baseUrl} query="${query}"`);
+    }
     const batch = await searchTorrentGalaxy(baseUrl, query, 20 - links.length);
     links.push(...batch);
   }
 
-  const uniqueLinks = dedupeLinks(links);
+  let filteredLinks = links;
+  if (links.length === 0 && episodeSuffix) {
+    for (const baseUrl of tgxUrls) {
+      if (filteredLinks.length >= 20) {
+        break;
+      }
+      const fallbackQuery = normalizeQuery(baseTitle);
+      if (DEBUG) {
+        console.warn(`[TGx] fallback search ${baseUrl} query="${fallbackQuery}"`);
+      }
+      const batch = await searchTorrentGalaxy(baseUrl, fallbackQuery, 20 - filteredLinks.length);
+      filteredLinks.push(...batch);
+    }
+  }
+
+  if (episodeSuffix) {
+    filteredLinks = filteredLinks.filter((link) => matchesEpisode(link.name, parsed.season, parsed.episode));
+  }
+
+  const uniqueLinks = dedupeLinks(filteredLinks);
+  if (DEBUG) {
+    console.warn(`[TGx] ${uniqueLinks.length} links after filtering`);
+  }
   const detailResults = await Promise.allSettled(
     uniqueLinks.map((link) => fetchTorrentDetails(link.url))
   );
