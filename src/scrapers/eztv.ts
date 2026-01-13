@@ -70,44 +70,63 @@ const buildApiUrl = (baseUrl: string, imdbId: string, page: number): string => {
 
 const fetchAllTorrents = async (baseUrl: string, imdbId: string): Promise<EztvTorrent[]> => {
   const torrents: EztvTorrent[] = [];
-  let page = 1;
-  let expectedTotal: number | null = null;
-  let pageLimit = DEFAULT_LIMIT;
+  const firstUrl = buildApiUrl(baseUrl, imdbId, 1);
+  if (DEBUG) {
+    console.warn(`[EZTV] fetching ${firstUrl}`);
+  }
+  const firstResponse = await fetchJson(firstUrl);
+  if (!firstResponse) {
+    return torrents;
+  }
 
-  while (page <= MAX_PAGES) {
-    const url = buildApiUrl(baseUrl, imdbId, page);
+  const firstBatch = firstResponse.torrents ?? [];
+  torrents.push(...firstBatch);
+
+  let expectedTotal = typeof firstResponse.torrents_count === "number" ? firstResponse.torrents_count : null;
+  let pageLimit = typeof firstResponse.limit === "number" && firstResponse.limit > 0 ? firstResponse.limit : DEFAULT_LIMIT;
+
+  if (
+    firstBatch.length === 0 ||
+    (expectedTotal !== null && torrents.length >= expectedTotal) ||
+    firstBatch.length < pageLimit
+  ) {
     if (DEBUG) {
-      console.warn(`[EZTV] fetching ${url}`);
+      console.warn("[EZTV] fetched only page 1");
     }
-    const response = await fetchJson(url);
-    if (!response) {
-      break;
-    }
+    return torrents;
+  }
 
-    const batch = response.torrents ?? [];
-    torrents.push(...batch);
+  const totalPages = expectedTotal ? Math.ceil(expectedTotal / pageLimit) : MAX_PAGES;
+  const lastPage = Math.min(totalPages, MAX_PAGES);
+  const pageNumbers = Array.from({ length: Math.max(0, lastPage - 1) }, (_, index) => index + 2);
+  const concurrency = 5;
 
-    if (expectedTotal === null && typeof response.torrents_count === "number") {
-      expectedTotal = response.torrents_count;
-    }
-    if (typeof response.limit === "number" && response.limit > 0) {
-      pageLimit = response.limit;
-    }
+  for (let i = 0; i < pageNumbers.length; i += concurrency) {
+    const batchPages = pageNumbers.slice(i, i + concurrency);
+    const responses = await Promise.all(
+      batchPages.map(async (page) => {
+        const url = buildApiUrl(baseUrl, imdbId, page);
+        if (DEBUG) {
+          console.warn(`[EZTV] fetching ${url}`);
+        }
+        return fetchJson(url);
+      })
+    );
 
-    if (batch.length === 0) {
-      break;
+    for (const response of responses) {
+      const batch = response?.torrents ?? [];
+      torrents.push(...batch);
+      if (batch.length < pageLimit) {
+        break;
+      }
     }
     if (expectedTotal !== null && torrents.length >= expectedTotal) {
       break;
     }
-    if (batch.length < pageLimit) {
-      break;
-    }
-    page += 1;
   }
 
   if (DEBUG) {
-    console.warn(`[EZTV] fetched ${torrents.length} torrents across ${page} page(s)`);
+    console.warn(`[EZTV] fetched ${torrents.length} torrents across ${lastPage} page(s)`);
   }
 
   return torrents;
