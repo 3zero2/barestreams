@@ -1,5 +1,5 @@
 export type AppConfig = {
-  redisUrl: string;
+  redisUrl?: string;
   eztvUrls: string[];
   ytsUrls: string[];
   tgxUrls: string[];
@@ -13,10 +13,6 @@ const parseUrls = (raw: string): string[] =>
 
 export const loadConfig = (): AppConfig => {
   const redisUrl = process.env.REDIS_URL;
-  if (!redisUrl) {
-    throw new Error("REDIS_URL is required");
-  }
-
   const eztvRaw = process.env.EZTV_URL || "";
   const eztvUrls = parseUrls(eztvRaw);
   if (eztvUrls.length === 0) {
@@ -35,5 +31,5 @@ export const loadConfig = (): AppConfig => {
     throw new Error("TGX_URL must contain at least one URL");
   }
 
-  return { redisUrl, eztvUrls, ytsUrls, tgxUrls };
+  return { redisUrl: redisUrl || undefined, eztvUrls, ytsUrls, tgxUrls };
 };
