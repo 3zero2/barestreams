@@ -1,5 +1,5 @@
 import type { ParsedStremioId } from "../parsing/stremioId.js";
-import type { StreamResponse } from "../types.js";
+import type { Stream, StreamResponse } from "../types.js";
 
 type YtsTorrent = {
   hash: string;
@@ -73,6 +73,13 @@ const sortBySeedsDesc = (a: YtsTorrent, b: YtsTorrent): number => {
   return bSeeds - aSeeds;
 };
 
+const buildBehaviorHints = (torrent: YtsTorrent): Stream["behaviorHints"] | undefined => {
+  if (typeof torrent.size_bytes === "number" && torrent.size_bytes > 0) {
+    return { videoSize: torrent.size_bytes };
+  }
+  return undefined;
+};
+
 export const scrapeYtsStreams = async (
   parsed: ParsedStremioId,
   ytsUrls: string[]
@@ -109,6 +116,7 @@ export const scrapeYtsStreams = async (
         title: displayName,
         description: formatTitle(movie, torrent),
         infoHash: torrent.hash.toLowerCase(),
+        behaviorHints: buildBehaviorHints(torrent),
         seeders: torrent.seeds
       };
     })
