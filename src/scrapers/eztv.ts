@@ -17,17 +17,37 @@ type EztvTorrent = {
 };
 
 type EztvResponse = {
-  torrents?: EztvTorrent[];
+  torrents?: EztvTorrentRaw[];
   torrents_count?: number;
   limit?: number;
   page?: number;
 };
+
+type EztvTorrentRaw = Omit<EztvTorrent, "size_bytes"> & { size_bytes?: number | string };
 
 const fetchHtml = (url: string): Promise<string | null> => fetchText(url);
 
 const getImdbDigits = (baseId: string): string => baseId.replace(/^tt/, "");
 const DEFAULT_LIMIT = 30;
 const MAX_PAGES = 50;
+
+const coerceSizeBytes = (value: unknown): number | undefined => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : undefined;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  }
+  return undefined;
+};
+
+const normalizeTorrent = (torrent: EztvTorrentRaw): EztvTorrent => {
+  return {
+    ...torrent,
+    size_bytes: coerceSizeBytes(torrent.size_bytes)
+  };
+};
 
 const buildApiUrl = (baseUrl: string, imdbId: string, page: number): string => {
   const normalized = normalizeBaseUrl(baseUrl);
@@ -45,7 +65,7 @@ const fetchAllTorrents = async (baseUrl: string, imdbId: string): Promise<EztvTo
     return torrents;
   }
 
-  const firstBatch = firstResponse.torrents ?? [];
+  const firstBatch = (firstResponse.torrents ?? []).map(normalizeTorrent);
   torrents.push(...firstBatch);
 
   let expectedTotal = typeof firstResponse.torrents_count === "number" ? firstResponse.torrents_count : null;
@@ -74,7 +94,7 @@ const fetchAllTorrents = async (baseUrl: string, imdbId: string): Promise<EztvTo
     );
 
     for (const response of responses) {
-      const batch = response?.torrents ?? [];
+      const batch = (response?.torrents ?? []).map(normalizeTorrent);
       torrents.push(...batch);
       if (batch.length < pageLimit) {
         break;
