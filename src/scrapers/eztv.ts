@@ -1,7 +1,7 @@
 import { getTitleBasics } from "../imdb/index.js";
 import { parseMagnet } from "../parsing/magnet.js";
 import type { ParsedStremioId } from "../parsing/stremioId.js";
-import type { StreamResponse } from "../types.js";
+import type { Stream, StreamResponse } from "../types.js";
 
 type EztvTorrent = {
   title?: string;
@@ -390,6 +390,17 @@ const formatTitle = (torrent: EztvTorrent): string => {
   return `${baseTitle} (${parts.join(" • ")})`;
 };
 
+const buildBehaviorHints = (torrent: EztvTorrent): Stream["behaviorHints"] | undefined => {
+  const hints: Stream["behaviorHints"] = {};
+  if (typeof torrent.size_bytes === "number" && torrent.size_bytes > 0) {
+    hints.videoSize = torrent.size_bytes;
+  }
+  if (torrent.filename) {
+    hints.filename = torrent.filename;
+  }
+  return Object.keys(hints).length > 0 ? hints : undefined;
+};
+
 const sortBySeedsDesc = (a: EztvTorrent, b: EztvTorrent): number => {
   const aSeeds = typeof a.seeds === "number" ? a.seeds : 0;
   const bSeeds = typeof b.seeds === "number" ? b.seeds : 0;
@@ -452,6 +463,7 @@ export const scrapeEztvStreams = async (
         description: formatTitle(torrent),
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources,
+        behaviorHints: buildBehaviorHints(torrent),
         seeders: torrent.seeds
       };
     })

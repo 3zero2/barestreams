@@ -58,6 +58,44 @@ const summarizeSources = (streams: StreamResponse["streams"]): Record<string, nu
   return Object.fromEntries(counts);
 };
 
+const normalizeBingeSegment = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+const extractQualityHint = (stream: Stream): string | null => {
+  const text = [stream.title, stream.description, stream.name].filter(Boolean).join(" ");
+  const match = text.match(/\b(2160p|1080p|720p|480p|4k|uhd)\b/i);
+  if (!match) {
+    return null;
+  }
+  const quality = match[1].toLowerCase();
+  if (quality === "4k" || quality === "uhd") {
+    return "2160p";
+  }
+  return quality;
+};
+
+const applyBingeGroup = (stream: Stream, parsed: ParsedStremioId, type: string): Stream => {
+  if (type !== "series" || !parsed.season || !parsed.episode) {
+    return stream;
+  }
+  if (stream.behaviorHints?.bingeGroup) {
+    return stream;
+  }
+  const quality = extractQualityHint(stream) ?? "unknown";
+  const source = normalizeBingeSegment(stream.name ?? "stream");
+  const bingeGroup = `lazy-torrentio-${source}-${quality}`;
+  return {
+    ...stream,
+    behaviorHints: {
+      ...stream.behaviorHints,
+      bingeGroup
+    }
+  };
+};
+
 const stripStreamExtras = (stream: Stream): Stream => {
   const { seeders, ...rest } = stream;
   return rest;
@@ -141,7 +179,9 @@ export const createAddonInterface = (config: AppConfig) => {
     });
 
     const sortedStreams = streams.slice().sort(sortBySeedersDesc);
-    const response: StreamResponse = { streams: sortedStreams.map(stripStreamExtras) };
+    const response: StreamResponse = {
+      streams: sortedStreams.map((stream) => stripStreamExtras(applyBingeGroup(stream, parsed, type)))
+    };
     await setCache(key, JSON.stringify(response), CACHE_TTL_SECONDS);
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
     logStreamRequest({
