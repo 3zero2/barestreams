@@ -228,6 +228,11 @@ const extractMagnet = (html: string): string | null => {
   return match ? match[1] : null;
 };
 
+const extractSizeLabel = (html: string): string | null => {
+  const match = html.match(/(\d+(?:\.\d+)?\s*(?:TB|GB|MB|KB|TiB|GiB|MiB|KiB))/i);
+  return match ? match[1].trim() : null;
+};
+
 const scrapeSearchStreams = async (
   baseUrl: string,
   query: string,
@@ -259,6 +264,7 @@ const scrapeSearchStreams = async (
       if (!parsedMagnet) {
         return null;
       }
+      const sizeLabel = extractSizeLabel(pageHtml);
       const title = parseTitleFromSlug(link);
       if (!matchesTitleText(title, titleCandidates)) {
         return null;
@@ -270,7 +276,8 @@ const scrapeSearchStreams = async (
         episode: displayContext.episode,
         torrentName: title,
         quality,
-        source: "EZTV"
+        source: "EZTV",
+        sizeLabel
       });
       return {
         name: display.name,

@@ -32,14 +32,11 @@ const formatEpisode = (season?: number, episode?: number): string | null => {
 };
 
 const buildTitlePattern = (title: string): RegExp | null => {
-  const trimmed = title.trim();
-  if (!trimmed) {
+  const tokens = title.match(/[a-z0-9]+/gi) ?? [];
+  if (tokens.length === 0) {
     return null;
   }
-  const pattern = trimmed.replace(/[^a-z0-9]+/gi, "[^a-z0-9]+");
-  if (!pattern) {
-    return null;
-  }
+  const pattern = tokens.map((token) => token.toLowerCase()).join("[^a-z0-9]*");
   return new RegExp(pattern, "i");
 };
 
@@ -83,10 +80,11 @@ const formatInfoLine = (seeders?: number, sizeBytes?: number | null, sizeLabel?:
   } else if (sizeLabel) {
     sizeText = sizeLabel.trim();
   }
-  if (!sizeText) {
-    sizeText = "Unknown size";
+  const parts = [`🌱 ${seederCount}`];
+  if (sizeText) {
+    parts.push(`💾 ${sizeText}`);
   }
-  return `🌱 ${seederCount} • 💾 ${sizeText}`;
+  return parts.join(" • ");
 };
 
 const resolveQuality = (options: StreamDisplayOptions): string => {
@@ -110,8 +108,8 @@ export const formatStreamDisplay = (options: StreamDisplayOptions): {
 } => {
   const imdbTitle = options.imdbTitle?.trim() || "Unknown title";
   const qualityLabel = formatQualityLabel(resolveQuality(options));
-  const name = options.source?.trim() || "Stream";
   const title = `Watch ${qualityLabel}`;
+  const name = title;
   const episodeLine = formatEpisode(options.season, options.episode);
   const slugLine =
     buildTorrentSlug(options.torrentName, imdbTitle) || options.quality?.trim() || "Unknown release";

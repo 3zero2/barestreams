@@ -15,7 +15,7 @@ describe("formatStreamDisplay", () => {
 
     console.log(display);
 
-    expect(display.name).toBe("EZTV");
+    expect(display.name).toBe("Watch 1080p");
     expect(display.title).toBe("Watch 1080p");
     expect(display.description).toBe(
       "The Handmaid's Tale\nSeason 6 Episode 7\n1080p WEB h264-ETHEL (EZTV)\n🌱 231 • 💾 1.4 GB"
@@ -32,6 +32,7 @@ describe("formatStreamDisplay", () => {
 
     console.log(display);
 
+    expect(display.name).toBe("Watch 480p");
     expect(display.title).toBe("Watch 480p");
     expect(display.description).toBe(
       "Some Movie\nWEB x264-GROUP (TGX)\n🌱 0 • 💾 900 MB"

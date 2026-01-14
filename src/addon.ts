@@ -49,10 +49,24 @@ const resolveImdbTitle = async (imdbId: string): Promise<string> => {
   return basics?.primaryTitle || basics?.originalTitle || imdbId;
 };
 
+const extractSourceFromDescription = (description?: string): string | null => {
+  if (!description) {
+    return null;
+  }
+  const lines = description.split("\n").reverse();
+  for (const line of lines) {
+    const match = line.match(/\(([^)]+)\)\s*$/);
+    if (match) {
+      return match[1].trim();
+    }
+  }
+  return null;
+};
+
 const summarizeSources = (streams: StreamResponse["streams"]): Record<string, number> => {
   const counts = new Map<string, number>();
   for (const stream of streams) {
-    const source = stream.name?.trim() || "unknown";
+    const source = extractSourceFromDescription(stream.description) || "unknown";
     counts.set(source, (counts.get(source) ?? 0) + 1);
   }
   return Object.fromEntries(counts);
@@ -85,7 +99,7 @@ const applyBingeGroup = (stream: Stream, parsed: ParsedStremioId, type: string):
     return stream;
   }
   const quality = extractQualityHint(stream) ?? "unknown";
-  const source = normalizeBingeSegment(stream.name ?? "stream");
+  const source = normalizeBingeSegment(extractSourceFromDescription(stream.description) ?? "stream");
   const bingeGroup = `lazy-torrentio-${source}-${quality}`;
   return {
     ...stream,

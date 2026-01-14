@@ -69,8 +69,8 @@ describe("addon end-to-end", () => {
     const result = await addon.get("stream", "movie", "tt10872600");
 
     expect(result.streams.length).toBeGreaterThan(0);
-    expect(result.streams.some((stream) => stream.name === "YTS")).toBe(true);
-    expect(result.streams.some((stream) => stream.name === "TGX")).toBe(true);
+    expect(result.streams.some((stream) => stream.description?.includes("(YTS)"))).toBe(true);
+    expect(result.streams.some((stream) => stream.description?.includes("(TGX)"))).toBe(true);
 
     if (testConfig?.redisUrl) {
       const cached = await addon.get("stream", "movie", "tt10872600");
@@ -82,7 +82,7 @@ describe("addon end-to-end", () => {
     const addon = createAddonInterface(testConfig!);
     const result = await addon.get("stream", "series", "tt5834204:2:3");
 
-    expect(result.streams.some((stream) => stream.name === "EZTV")).toBe(true);
+    expect(result.streams.some((stream) => stream.description?.includes("(EZTV)"))).toBe(true);
     expect(result.streams.length).toBeGreaterThan(0);
   }, 30000);
 });
