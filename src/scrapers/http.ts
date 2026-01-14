@@ -1,4 +1,4 @@
-import { ProxyAgent, fetch } from "undici";
+import { ProxyAgent, fetch, type Response } from "undici";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 const proxyUrl = process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY;
