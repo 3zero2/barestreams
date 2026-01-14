@@ -1,6 +1,7 @@
 import { getTitleBasics } from "../imdb/index.js";
 import { parseMagnet } from "../parsing/magnet.js";
 import type { ParsedStremioId } from "../parsing/stremioId.js";
+import { extractQualityHint, formatStreamDisplay } from "../streams/display.js";
 import type { Stream, StreamResponse } from "../types.js";
 
 type EztvTorrent = {
@@ -303,7 +304,8 @@ const extractMagnet = (html: string): string | null => {
 const scrapeSearchStreams = async (
   baseUrl: string,
   query: string,
-  titleCandidates: string[]
+  titleCandidates: string[],
+  displayContext: { imdbTitle: string; season?: number; episode?: number }
 ): Promise<StreamResponse> => {
   const searchUrl = buildSearchUrl(baseUrl, query);
   if (DEBUG) {
@@ -340,10 +342,19 @@ const scrapeSearchStreams = async (
       if (!matchesTitleText(title, titleCandidates)) {
         return null;
       }
+      const quality = extractQualityHint(title);
+      const display = formatStreamDisplay({
+        addonPrefix: "LT",
+        imdbTitle: displayContext.imdbTitle,
+        season: displayContext.season,
+        episode: displayContext.episode,
+        torrentName: title,
+        quality
+      });
       return {
-        name: "EZTV",
-        title,
-        description: title,
+        name: display.name,
+        title: display.title,
+        description: display.description,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources
       };
@@ -371,23 +382,6 @@ const matchesEpisode = (torrent: EztvTorrent, season?: number, episode?: number)
     return false;
   }
   return parsed.season === season && parsed.episode === episode;
-};
-
-const formatTitle = (torrent: EztvTorrent): string => {
-  const baseTitle = torrent.title ?? torrent.filename ?? "EZTV";
-  if (!torrent.seeds && !torrent.size_bytes) {
-    return baseTitle;
-  }
-
-  const parts: string[] = [];
-  if (torrent.seeds) {
-    parts.push(`S:${torrent.seeds}`);
-  }
-  if (torrent.size_bytes) {
-    const sizeGiB = torrent.size_bytes / (1024 * 1024 * 1024);
-    parts.push(`${sizeGiB.toFixed(2)} GiB`);
-  }
-  return `${baseTitle} (${parts.join(" • ")})`;
 };
 
 const buildBehaviorHints = (torrent: EztvTorrent): Stream["behaviorHints"] | undefined => {
@@ -457,10 +451,23 @@ export const scrapeEztvStreams = async (
         return null;
       }
       seen.add(parsedMagnet.infoHash);
+      const torrentName = torrent.title ?? torrent.filename ?? "EZTV";
+      const imdbTitle = basics?.primaryTitle || basics?.originalTitle || "EZTV";
+      const quality = extractQualityHint(torrentName);
+      const display = formatStreamDisplay({
+        addonPrefix: "LT",
+        imdbTitle,
+        season: parsed.season,
+        episode: parsed.episode,
+        torrentName,
+        quality,
+        seeders: torrent.seeds,
+        sizeBytes: torrent.size_bytes
+      });
       return {
-        name: "EZTV",
-        title: torrent.title ?? torrent.filename ?? "EZTV",
-        description: formatTitle(torrent),
+        name: display.name,
+        title: display.title,
+        description: display.description,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources,
         behaviorHints: buildBehaviorHints(torrent),
@@ -475,8 +482,15 @@ export const scrapeEztvStreams = async (
     const baseTitle = basics?.primaryTitle || basics?.originalTitle;
     if (episodeSuffix && baseTitle) {
       const query = buildSearchQuery(baseTitle, episodeSuffix);
+      const imdbTitle = basics?.primaryTitle || basics?.originalTitle || baseTitle;
       const fallbackResults = await Promise.allSettled(
-        eztvUrls.map((baseUrl) => scrapeSearchStreams(baseUrl, query, titleCandidates))
+        eztvUrls.map((baseUrl) =>
+          scrapeSearchStreams(baseUrl, query, titleCandidates, {
+            imdbTitle,
+            season: parsed.season,
+            episode: parsed.episode
+          })
+        )
       );
       const fallbackList = fallbackResults.flatMap((result) =>
         result.status === "fulfilled" ? result.value.streams : []

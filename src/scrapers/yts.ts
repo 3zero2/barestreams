@@ -1,4 +1,5 @@
 import type { ParsedStremioId } from "../parsing/stremioId.js";
+import { formatStreamDisplay } from "../streams/display.js";
 import type { Stream, StreamResponse } from "../types.js";
 
 type YtsTorrent = {
@@ -54,19 +55,6 @@ const buildListUrl = (baseUrl: string, imdbId: string): string => {
   return `${apiRoot}/list_movies.json?${params.toString()}`;
 };
 
-const formatTitle = (movie: YtsMovie, torrent: YtsTorrent): string => {
-  const baseTitle = movie.title_long || movie.title || "YTS";
-  const sizeGiB = torrent.size_bytes ? torrent.size_bytes / (1024 * 1024 * 1024) : 0;
-  const parts = [`${torrent.quality} ${torrent.type}`];
-  if (torrent.seeds) {
-    parts.push(`S:${torrent.seeds}`);
-  }
-  if (sizeGiB) {
-    parts.push(`${sizeGiB.toFixed(2)} GiB`);
-  }
-  return `${baseTitle} (${parts.join(" • ")})`;
-};
-
 const sortBySeedsDesc = (a: YtsTorrent, b: YtsTorrent): number => {
   const aSeeds = typeof a.seeds === "number" ? a.seeds : 0;
   const bSeeds = typeof b.seeds === "number" ? b.seeds : 0;
@@ -110,11 +98,21 @@ export const scrapeYtsStreams = async (
         return null;
       }
       seen.add(key);
-      const displayName = `${movie.title_long || movie.title} ${torrent.quality} ${torrent.type}`;
+      const imdbTitle = movie.title_long || movie.title || "YTS";
+      const torrentName = `${imdbTitle} ${torrent.quality} ${torrent.type}`.trim();
+      const qualityLabel = [torrent.quality, torrent.type].filter(Boolean).join(" ");
+      const display = formatStreamDisplay({
+        addonPrefix: "LT",
+        imdbTitle,
+        torrentName,
+        quality: qualityLabel,
+        seeders: torrent.seeds,
+        sizeBytes: torrent.size_bytes
+      });
       return {
-        name: "YTS",
-        title: displayName,
-        description: formatTitle(movie, torrent),
+        name: display.name,
+        title: display.title,
+        description: display.description,
         infoHash: torrent.hash.toLowerCase(),
         behaviorHints: buildBehaviorHints(torrent),
         seeders: torrent.seeds

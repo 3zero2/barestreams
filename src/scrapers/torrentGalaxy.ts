@@ -2,6 +2,7 @@ import { load } from "cheerio";
 import type { ParsedStremioId } from "../parsing/stremioId.js";
 import { getTitleBasics } from "../imdb/index.js";
 import { parseMagnet } from "../parsing/magnet.js";
+import { extractQualityHint, formatStreamDisplay } from "../streams/display.js";
 import type { Stream, StreamResponse } from "../types.js";
 
 type TorrentGalaxyLink = {
@@ -150,24 +151,6 @@ const buildQueries = async (
     return { baseTitle, query: normalizeQuery(`${baseTitle} ${episodeSuffix}`), episodeSuffix };
   }
   return { baseTitle, query: normalizeQuery(baseTitle), episodeSuffix: null };
-};
-
-const formatTitle = (link: TorrentGalaxyLink): string => {
-  const baseTitle = link.name || "TGx";
-  const parts: string[] = [];
-  if (link.seeders) {
-    parts.push(`S:${link.seeders}`);
-  }
-  if (link.leechers) {
-    parts.push(`L:${link.leechers}`);
-  }
-  if (link.size) {
-    parts.push(link.size);
-  }
-  if (parts.length === 0) {
-    return baseTitle;
-  }
-  return `${baseTitle} (${parts.join(" • ")})`;
 };
 
 const parseSizeToBytes = (rawSize: string): number | null => {
@@ -321,10 +304,23 @@ export const scrapeTorrentGalaxyStreams = async (
       if (!parsedMagnet) {
         return null;
       }
+      const quality = extractQualityHint(link.name ?? "");
+      const sizeBytes = link.size ? parseSizeToBytes(link.size) : null;
+      const display = formatStreamDisplay({
+        addonPrefix: "LT",
+        imdbTitle: baseTitle,
+        season: parsed.season,
+        episode: parsed.episode,
+        torrentName: link.name,
+        quality,
+        seeders: link.seeders,
+        sizeBytes,
+        sizeLabel: link.size
+      });
       return {
-        name: "TGx",
-        title: link.name,
-        description: formatTitle(link),
+        name: display.name,
+        title: display.title,
+        description: display.description,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources,
         behaviorHints: buildBehaviorHints(link),
