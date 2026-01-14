@@ -1,4 +1,8 @@
+import { ProxyAgent } from "undici";
+
 const DEFAULT_TIMEOUT_MS = 10_000;
+const proxyUrl = process.env.HTTPS_PROXY ?? process.env.HTTP_PROXY;
+const proxyAgent = proxyUrl ? new ProxyAgent(proxyUrl) : undefined;
 
 export const normalizeBaseUrl = (baseUrl: string): string => baseUrl.replace(/\/+$/, "");
 
@@ -8,6 +12,7 @@ const fetchWithTimeout = async (url: string, timeoutMs = DEFAULT_TIMEOUT_MS): Pr
   try {
     const response = await fetch(url, {
       headers: { "User-Agent": "lazy-torrentio" },
+      dispatcher: proxyAgent,
       signal: controller.signal
     });
     if (!response.ok) {
