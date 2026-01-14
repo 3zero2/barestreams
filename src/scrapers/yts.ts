@@ -82,7 +82,6 @@ export const scrapeYtsStreams = async (
       const torrentName = `${imdbTitle} ${torrent.quality} ${torrent.type}`.trim();
       const qualityLabel = [torrent.quality, torrent.type].filter(Boolean).join(" ");
       const display = formatStreamDisplay({
-        addonPrefix: "LT",
         imdbTitle,
         torrentName,
         quality: qualityLabel,

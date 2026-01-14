@@ -265,7 +265,6 @@ const scrapeSearchStreams = async (
       }
       const quality = extractQualityHint(title);
       const display = formatStreamDisplay({
-        addonPrefix: "LT",
         imdbTitle: displayContext.imdbTitle,
         season: displayContext.season,
         episode: displayContext.episode,
@@ -370,7 +369,6 @@ export const scrapeEztvStreams = async (
       const imdbTitle = basics?.primaryTitle || basics?.originalTitle || "EZTV";
       const quality = extractQualityHint(torrentName);
       const display = formatStreamDisplay({
-        addonPrefix: "LT",
         imdbTitle,
         season: parsed.season,
         episode: parsed.episode,

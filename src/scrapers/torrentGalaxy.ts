@@ -279,7 +279,6 @@ export const scrapeTorrentGalaxyStreams = async (
       const quality = extractQualityHint(link.name ?? "");
       const sizeBytes = link.size ? parseSizeToBytes(link.size) : null;
       const display = formatStreamDisplay({
-        addonPrefix: "LT",
         imdbTitle: baseTitle,
         season: parsed.season,
         episode: parsed.episode,

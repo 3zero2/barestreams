@@ -1,5 +1,4 @@
 export type StreamDisplayOptions = {
-  addonPrefix: string;
   imdbTitle: string;
   season?: number;
   episode?: number;
@@ -31,6 +30,15 @@ const formatEpisode = (season?: number, episode?: number): string | null => {
   const seasonStr = season.toString().padStart(2, "0");
   const episodeStr = episode.toString().padStart(2, "0");
   return `📌 S${seasonStr}E${episodeStr}`;
+};
+
+const formatEpisodeTag = (season?: number, episode?: number): string | null => {
+  if (!season || !episode) {
+    return null;
+  }
+  const seasonStr = season.toString().padStart(2, "0");
+  const episodeStr = episode.toString().padStart(2, "0");
+  return `S${seasonStr}E${episodeStr}`;
 };
 
 const buildTitlePattern = (title: string): RegExp | null => {
@@ -98,12 +106,19 @@ export const formatStreamDisplay = (options: StreamDisplayOptions): {
   description?: string;
 } => {
   const qualityLabel = options.quality?.trim();
-  const name = qualityLabel ? `🧲 ${options.addonPrefix} ${qualityLabel}` : `🧲 ${options.addonPrefix}`;
+  const imdbTitle = options.imdbTitle?.trim();
+  const episodeTag = formatEpisodeTag(options.season, options.episode);
+  const name =
+    qualityLabel ||
+    (imdbTitle && episodeTag ? `${imdbTitle} ${episodeTag}` : imdbTitle) ||
+    episodeTag ||
+    "Stream";
   const titleEmoji = options.season && options.episode ? "📺" : "🎬";
-  const titleLine = `${titleEmoji} ${options.imdbTitle}`;
   const episodeLine = formatEpisode(options.season, options.episode);
   const slugLine = buildTorrentSlug(options.torrentName, options.imdbTitle);
-  const slugDisplay = slugLine ? `🏷️ ${slugLine}` : null;
+  const titleBase = imdbTitle || slugLine || "Stream";
+  const titleLine = `${titleEmoji} ${titleBase}`;
+  const slugDisplay = imdbTitle && slugLine ? `🏷️ ${slugLine}` : null;
   const infoLine = formatInfoLine(options.seeders, options.sizeBytes ?? null, options.sizeLabel ?? null);
   const lines = [titleLine, episodeLine, slugDisplay].filter((line): line is string => Boolean(line));
 
