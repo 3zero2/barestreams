@@ -393,7 +393,9 @@ export const scrapeEztvStreams = async (
         return null;
       }
       seen.add(parsedMagnet.infoHash);
-      const torrentName = torrent.title ?? torrent.filename ?? "EZTV";
+      const rawTorrentName = torrent.title ?? torrent.filename ?? "EZTV";
+      const cleanedTorrentName = rawTorrentName.replace(/[.\s-]*\bEZTV\b\s*$/i, "").trim();
+      const torrentName = cleanedTorrentName || rawTorrentName;
       const imdbTitle = basics?.primaryTitle || basics?.originalTitle || "EZTV";
       const quality = extractQualityHint(torrentName);
       const display = formatStreamDisplay({
