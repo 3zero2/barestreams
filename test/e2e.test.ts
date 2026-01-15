@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAddonInterface } from "../src/addon.js";
 import type { AppConfig } from "../src/config.js";
+import { initFlareSolverrSessions } from "../src/scrapers/http.js";
 
 vi.mock("../src/imdb/index.js", () => {
   return {
@@ -43,14 +44,16 @@ const loadTestConfig = (): AppConfig | null => {
   const eztvUrl = process.env.EZTV_URL || "https://eztv.re";
   const pirateBayUrl = process.env.PIRATEBAY_URL || "https://thepiratebay.org";
   const x1337xUrl = process.env.X1337X_URL || "https://1337x.to";
+  const flareSolverrSessions = Number.parseInt(process.env.FLARESOLVERR_SESSIONS || "10", 10) || 10;
 
   return {
-    redisUrl: "redis://localhost:6379",
+    redisUrl: process.env.REDIS_URL ?? "",
     ytsUrls: [ytsUrl],
     tgxUrls: [tgxUrl],
     eztvUrls: [eztvUrl],
     pirateBayUrls: [pirateBayUrl],
-    x1337xUrls: [x1337xUrl]
+    x1337xUrls: [x1337xUrl],
+    flareSolverrSessions
   };
 };
 
@@ -58,6 +61,14 @@ const testConfig = loadTestConfig();
 const itWithConfig = testConfig ? it : it.skip;
 
 describe("addon end-to-end", () => {
+  beforeAll(async () => {
+    await initFlareSolverrSessions({
+      count: testConfig?.flareSolverrSessions,
+      prefix: "lazy-1337x",
+      warmupUrls: testConfig?.x1337xUrls
+    });
+  }, 60000);
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -83,5 +94,5 @@ describe("addon end-to-end", () => {
 
     expect(result.streams.some((stream) => stream.description?.includes("🔗 EZTV"))).toBe(true);
     expect(result.streams.length).toBeGreaterThan(0);
-  }, 30000);
+  }, 60000);
 });

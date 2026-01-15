@@ -1,13 +1,18 @@
-const DEFAULT_TIMEOUT_MS = 10_000;
-const flareSolverrUrl = "http://localhost:8191";
+const DEFAULT_TIMEOUT_MS = 30_000;
+const flareSolverrUrl = process.env.FLARESOLVERR_URL ?? "http://localhost:8191";
+const flareSolverrSessions: string[] = [];
+let flareSolverrSessionIndex = 0;
+let flareSolverrSessionInitAttempted = false;
 
 type FetchOptions = {
   timeoutMs?: number;
   useFlareSolverr?: boolean;
+  useFlareSolverrSessionPool?: boolean;
 };
 
 type FlareSolverrResponse = {
   status: string;
+  session?: string;
   solution?: {
     response: string;
     status: number;
@@ -35,7 +40,11 @@ const fetchWithTimeout = async (url: string, timeoutMs = DEFAULT_TIMEOUT_MS): Pr
   }
 };
 
-const fetchTextViaFlareSolverr = async (url: string, timeoutMs: number): Promise<string | null> => {
+const fetchTextViaFlareSolverr = async (
+  url: string,
+  timeoutMs: number,
+  session?: string
+): Promise<string | null> => {
   if (!flareSolverrUrl) {
     return null;
   }
@@ -48,7 +57,8 @@ const fetchTextViaFlareSolverr = async (url: string, timeoutMs: number): Promise
       body: JSON.stringify({
         cmd: "request.get",
         url,
-        maxTimeout: timeoutMs
+        maxTimeout: timeoutMs,
+        session
       }),
       signal: controller.signal
     });
@@ -70,10 +80,82 @@ const fetchTextViaFlareSolverr = async (url: string, timeoutMs: number): Promise
   }
 };
 
+const createFlareSolverrSession = async (
+  session: string,
+  timeoutMs: number
+): Promise<string | null> => {
+  if (!flareSolverrUrl) {
+    return null;
+  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${flareSolverrUrl}/v1`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cmd: "sessions.create",
+        session
+      }),
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const payload = (await response.json()) as FlareSolverrResponse;
+    if (payload.status !== "ok") {
+      return null;
+    }
+    return payload.session ?? session;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const getNextFlareSolverrSession = (): string | undefined => {
+  if (flareSolverrSessions.length === 0) {
+    return undefined;
+  }
+  const session = flareSolverrSessions[flareSolverrSessionIndex % flareSolverrSessions.length];
+  flareSolverrSessionIndex += 1;
+  return session;
+};
+
+export const initFlareSolverrSessions = async (options?: {
+  count?: number;
+  prefix?: string;
+  timeoutMs?: number;
+  warmupUrls?: string[];
+}): Promise<void> => {
+  if (!flareSolverrUrl || flareSolverrSessionInitAttempted) {
+    return;
+  }
+  flareSolverrSessionInitAttempted = true;
+  const count = options?.count ?? 5;
+  const prefix = options?.prefix ?? "lazy-1337x";
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const warmupUrl = options?.warmupUrls?.[0];
+  const sessions = Array.from({ length: count }, (_, index) => `${prefix}-${index + 1}`);
+  const created = await Promise.all(sessions.map((session) => createFlareSolverrSession(session, timeoutMs)));
+  for (const session of created) {
+    if (session) {
+      flareSolverrSessions.push(session);
+    }
+  }
+  if (warmupUrl && flareSolverrSessions.length > 0) {
+    await Promise.all(
+      flareSolverrSessions.map((session) => fetchTextViaFlareSolverr(warmupUrl, timeoutMs, session))
+    );
+  }
+};
+
 export const fetchJson = async <T>(url: string, options?: FetchOptions): Promise<T | null> => {
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   if (options?.useFlareSolverr) {
-    const text = await fetchTextViaFlareSolverr(url, timeoutMs);
+    const session = options.useFlareSolverrSessionPool ? getNextFlareSolverrSession() : undefined;
+    const text = await fetchTextViaFlareSolverr(url, timeoutMs, session);
     if (!text) {
       return null;
     }
@@ -97,7 +179,8 @@ export const fetchJson = async <T>(url: string, options?: FetchOptions): Promise
 export const fetchText = async (url: string, options?: FetchOptions): Promise<string | null> => {
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   if (options?.useFlareSolverr) {
-    return fetchTextViaFlareSolverr(url, timeoutMs);
+    const session = options.useFlareSolverrSessionPool ? getNextFlareSolverrSession() : undefined;
+    return fetchTextViaFlareSolverr(url, timeoutMs, session);
   }
   const response = await fetchWithTimeout(url, timeoutMs);
   if (!response) {

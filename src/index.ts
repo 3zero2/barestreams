@@ -3,6 +3,7 @@ import { createAddonInterface } from "./addon.js";
 import { initRedis } from "./cache/redis.js";
 import { loadConfig } from "./config.js";
 import { ensureImdbDatasets } from "./imdb/index.js";
+import { initFlareSolverrSessions } from "./scrapers/http.js";
 import { BadRequestError } from "./types.js";
 
 const PORT = 80;
@@ -24,8 +25,13 @@ const start = async (): Promise<void> => {
   try {
     await initRedis(config.redisUrl);
   } catch {
-    console.warn('Redis unavailable, continuing without cache');
+    console.warn("Redis unavailable, continuing without cache");
   }
+  await initFlareSolverrSessions({
+    count: config.flareSolverrSessions,
+    prefix: "lazy-1337x",
+    warmupUrls: config.x1337xUrls
+  });
   await ensureImdbDatasets();
   const addonInterface = createAddonInterface(config);
 

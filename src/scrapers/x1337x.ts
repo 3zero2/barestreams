@@ -19,7 +19,10 @@ type X1337xDetails = {
   magnetURI?: string;
 };
 
-const fetchHtml = (url: string): Promise<string | null> => fetchText(url, { useFlareSolverr: true });
+const fetchHtml = async (url: string): Promise<string | null> => {
+  const html = await fetchText(url, { useFlareSolverr: true, useFlareSolverrSessionPool: true });
+  return html;
+};
 
 const buildSearchUrl = (baseUrl: string, query: string, page: number): string => {
   const normalized = normalizeBaseUrl(baseUrl);
@@ -69,22 +72,13 @@ const parseSearchResults = (html: string, baseUrl: string, limit: number): X1337
 };
 
 const searchX1337x = async (baseUrl: string, query: string, limit: number): Promise<X1337xLink[]> => {
-  const results: X1337xLink[] = [];
   const normalizedBase = normalizeBaseUrl(baseUrl);
-  let page = 1;
-  while (results.length < limit) {
-    const html = await fetchHtml(buildSearchUrl(normalizedBase, query, page));
-    if (!html) {
-      break;
-    }
-    const batch = parseSearchResults(html, normalizedBase, limit - results.length);
-    if (batch.length === 0) {
-      break;
-    }
-    results.push(...batch);
-    page += 1;
+  const url = buildSearchUrl(normalizedBase, query, 1);
+  const html = await fetchHtml(url);
+  if (!html) {
+    return [];
   }
-  return results;
+  return parseSearchResults(html, normalizedBase, limit);
 };
 
 const fetchTorrentDetails = async (url: string): Promise<X1337xDetails | null> => {
@@ -165,24 +159,26 @@ export const scrapeX1337xStreams = async (
   baseUrls: string[]
 ): Promise<StreamResponse> => {
   const { baseTitle, query, episodeSuffix } = await buildQueries(parsed);
+  const searchLimit = 20;
+  const detailLimit = 10;
   const links: X1337xLink[] = [];
 
   for (const baseUrl of baseUrls) {
-    if (links.length >= 20) {
+    if (links.length >= searchLimit) {
       break;
     }
-    const batch = await searchX1337x(baseUrl, query, 20 - links.length);
+    const batch = await searchX1337x(baseUrl, query, searchLimit - links.length);
     links.push(...batch);
   }
 
   let filteredLinks = links;
   if (links.length === 0 && episodeSuffix) {
     for (const baseUrl of baseUrls) {
-      if (filteredLinks.length >= 20) {
+      if (filteredLinks.length >= searchLimit) {
         break;
       }
       const fallbackQuery = normalizeQuery(baseTitle);
-      const batch = await searchX1337x(baseUrl, fallbackQuery, 20 - filteredLinks.length);
+      const batch = await searchX1337x(baseUrl, fallbackQuery, searchLimit - filteredLinks.length);
       filteredLinks.push(...batch);
     }
   }
@@ -193,11 +189,12 @@ export const scrapeX1337xStreams = async (
 
   const uniqueLinks = dedupeLinks(filteredLinks);
   const sortedLinks = uniqueLinks.slice().sort(sortBySeedersDesc);
+  const topLinks = sortedLinks.slice(0, detailLimit);
   const detailResults = await Promise.allSettled(
-    sortedLinks.map((link) => fetchTorrentDetails(link.url))
+    topLinks.map((link) => fetchTorrentDetails(link.url))
   );
 
-  const streams = sortedLinks
+  const streams = topLinks
     .map((link, index) => {
       const detailResult = detailResults[index];
       if (detailResult.status !== "fulfilled") {

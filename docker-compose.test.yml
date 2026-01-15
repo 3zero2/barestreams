@@ -13,10 +13,11 @@ services:
       - ./:/app
     depends_on:
       - flaresolverr
-    network_mode: "service:flaresolverr"
     environment:
       - NODE_ENV=test
+      - FLARESOLVERR_SESSIONS=10
+      - FLARESOLVERR_URL=http://flaresolverr:8191
     command: >
       sh -c "npm install
-      && node -e \"const http=require('http');let tries=0;const max=30;const check=()=>{const req=http.get('http://localhost:8191/v1',(res)=>{res.resume();process.exit(0);});req.on('error',()=>{if(tries++>=max){process.exit(1);}setTimeout(check,1000);});};check();\"
-      && npm test"
+      && node -e \"const http=require('http');const url=process.env.FLARESOLVERR_URL||'http://flaresolverr:8191';let tries=0;const max=30;const check=()=>{const req=http.get(new URL('/v1', url),(res)=>{res.resume();process.exit(0);});req.on('error',()=>{if(tries++>=max){process.exit(1);}setTimeout(check,1000);});};check();\"
+      && npm test -- --run"

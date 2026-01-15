@@ -5,6 +5,7 @@ export type AppConfig = {
   tgxUrls: string[];
   pirateBayUrls: string[];
   x1337xUrls: string[];
+  flareSolverrSessions: number;
 };
 
 const parseUrls = (raw: string): string[] =>
@@ -44,12 +45,18 @@ export const loadConfig = (): AppConfig => {
     throw new Error("X1337X_URL must contain at least one URL");
   }
 
+  const flareSolverrRaw = process.env.FLARESOLVERR_SESSIONS || "10";
+  const flareSolverrSessions = Math.max(1, Number.parseInt(flareSolverrRaw, 10) || 10);
+
+  const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
+
   return {
-    redisUrl: "redis://localhost:6379",
+    redisUrl,
     eztvUrls,
     ytsUrls,
     tgxUrls,
     pirateBayUrls,
-    x1337xUrls
+    x1337xUrls,
+    flareSolverrSessions
   };
 };

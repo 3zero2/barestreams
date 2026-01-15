@@ -190,17 +190,27 @@ export const createAddonInterface = (config: AppConfig) => {
           ]
     );
 
-    const seen = new Set<string>();
+    const seen = new Map<string, Stream>();
     const streams = responses.flatMap((result) => {
       if (result.status !== "fulfilled") {
         return [];
       }
       return result.value.streams.filter((stream) => {
         const key = stream.infoHash ?? stream.url ?? "";
-        if (!key || seen.has(key)) {
+        if (!key) {
           return false;
         }
-        seen.add(key);
+        const existing = seen.get(key);
+        if (existing) {
+          if (existing.sources || stream.sources) {
+            const merged = new Set([...(existing.sources ?? []), ...(stream.sources ?? [])]);
+            if (merged.size > 0) {
+              existing.sources = Array.from(merged);
+            }
+          }
+          return false;
+        }
+        seen.set(key, stream);
         return true;
       });
     });
