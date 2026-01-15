@@ -17,6 +17,10 @@ Addon will be available at:
 
 - http://localhost:19080/manifest.json
 
+Flaresolverr (optional) will be available at:
+
+- http://localhost:8191
+
 ## Run locally
 
 ```bash

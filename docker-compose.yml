@@ -13,33 +13,38 @@ services:
       - OPENVPN_USER=${NORDVPN_USER}
       - OPENVPN_PASSWORD=${NORDVPN_PASS}
       - SERVER_COUNTRIES=${NORDVPN_SERVER_COUNTRIES}
-      - HTTPPROXY=on
       - TZ=${TZ}
     ports:
-      - "8888:8888"
+      - "19080:80"
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    depends_on:
+      - gluetun
+    network_mode: "service:gluetun"
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    depends_on:
+      - gluetun
+    environment:
+      - LOG_LEVEL=info
+    network_mode: "service:gluetun"
 
   lazy-torrentio:
     build: .
     depends_on:
       - gluetun
       - redis
+      - flaresolverr
+    network_mode: "service:gluetun"
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://localhost:6379
       - EZTV_URL=https://eztv.re
       - YTS_URL=https://yts.lt
       - TGX_URL=https://torrentgalaxy.hair
       - PIRATEBAY_URL=https://thepiratebay.org
-      - HTTP_PROXY=http://gluetun:8888
-      - HTTPS_PROXY=http://gluetun:8888
-      - NO_PROXY=redis,localhost,127.0.0.1
-    ports:
-      - "19080:80"
     volumes:
       - ./data/imdb:/app/data/imdb
