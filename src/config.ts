@@ -1,5 +1,5 @@
 export type AppConfig = {
-  redisUrl?: string;
+  redisUrl: string;
   eztvUrls: string[];
   ytsUrls: string[];
   tgxUrls: string[];
@@ -14,7 +14,6 @@ const parseUrls = (raw: string): string[] =>
     .filter(Boolean);
 
 export const loadConfig = (): AppConfig => {
-  const redisUrl = process.env.REDIS_URL;
   const eztvRaw = process.env.EZTV_URL || "";
   const eztvUrls = parseUrls(eztvRaw);
   if (eztvUrls.length === 0) {
@@ -46,7 +45,7 @@ export const loadConfig = (): AppConfig => {
   }
 
   return {
-    redisUrl: redisUrl || undefined,
+    redisUrl: "redis://localhost:6379",
     eztvUrls,
     ytsUrls,
     tgxUrls,

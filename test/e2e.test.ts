@@ -38,7 +38,6 @@ vi.mock("../src/imdb/index.js", () => {
 });
 
 const loadTestConfig = (): AppConfig | null => {
-  const redisUrl = process.env.REDIS_URL;
   const ytsUrl = process.env.YTS_URL || "https://yts.lt";
   const tgxUrl = process.env.TGX_URL || "https://torrentgalaxy.hair";
   const eztvUrl = process.env.EZTV_URL || "https://eztv.re";
@@ -46,7 +45,7 @@ const loadTestConfig = (): AppConfig | null => {
   const x1337xUrl = process.env.X1337X_URL || "https://1337x.to";
 
   return {
-    redisUrl: redisUrl || undefined,
+    redisUrl: "redis://localhost:6379",
     ytsUrls: [ytsUrl],
     tgxUrls: [tgxUrl],
     eztvUrls: [eztvUrl],

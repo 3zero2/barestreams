@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    environment:
+      - LOG_LEVEL=info
+
+  tests:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./:/app
+    depends_on:
+      - flaresolverr
+    network_mode: "service:flaresolverr"
+    environment:
+      - NODE_ENV=test
+    command: >
+      sh -c "npm install
+      && node -e \"const http=require('http');let tries=0;const max=30;const check=()=>{const req=http.get('http://localhost:8191/v1',(res)=>{res.resume();process.exit(0);});req.on('error',()=>{if(tries++>=max){process.exit(1);}setTimeout(check,1000);});};check();\"
+      && npm test"

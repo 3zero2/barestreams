@@ -41,7 +41,6 @@ services:
     env_file:
       - .env
     environment:
-      - REDIS_URL=redis://localhost:6379
       - EZTV_URL=https://eztv.re
       - YTS_URL=https://yts.lt
       - TGX_URL=https://torrentgalaxy.hair

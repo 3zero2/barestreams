@@ -21,7 +21,11 @@ const sendJson = (res: http.ServerResponse, statusCode: number, body: unknown): 
 
 const start = async (): Promise<void> => {
   const config = loadConfig();
-  await initRedis(config.redisUrl);
+  try {
+    await initRedis(config.redisUrl);
+  } catch {
+    console.warn('Redis unavailable, continuing without cache');
+  }
   await ensureImdbDatasets();
   const addonInterface = createAddonInterface(config);
 
