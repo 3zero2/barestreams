@@ -1,16 +1,16 @@
-import { addonBuilder } from "stremio-addon-sdk";
 import type { StreamHandlerArgs } from "stremio-addon-sdk";
+import { addonBuilder } from "stremio-addon-sdk";
 import { getCache, setCache } from "./cache/redis.js";
+import type { AppConfig } from "./config.js";
+import { getTitleBasics } from "./imdb/index.js";
 import { parseStremioId, type ParsedStremioId } from "./parsing/stremioId.js";
 import { scrapeEztvStreams } from "./scrapers/eztv.js";
 import { scrapePirateBayStreams } from "./scrapers/pirateBay.js";
 import { scrapeTorrentGalaxyStreams } from "./scrapers/torrentGalaxy.js";
 import { scrapeX1337xStreams } from "./scrapers/x1337x.js";
 import { scrapeYtsStreams } from "./scrapers/yts.js";
-import type { AppConfig } from "./config.js";
-import { BadRequestError, type Stream, type StreamResponse } from "./types.js";
-import { getTitleBasics } from "./imdb/index.js";
 import { extractQualityHint } from "./streams/quality.js";
+import { BadRequestError, type Stream, type StreamResponse } from "./types.js";
 
 export const CACHE_TTL_SECONDS = 604800;
 
@@ -22,7 +22,10 @@ export const manifest = {
   resources: ["stream"],
   types: ["movie", "series"],
   idPrefixes: ["tt"],
-  catalogs: []
+  catalogs: [],
+  behaviorHints: {
+    p2p: true
+  }
 };
 
 const sortBySeedersDesc = (a: { seeders?: number }, b: { seeders?: number }): number => {
