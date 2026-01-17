@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7-alpine
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    environment:
+      - LOG_LEVEL=info
+
+  lazy-torrentio:
+    build: .
+    depends_on:
+      - redis
+      - flaresolverr
+    command: ["sh", "-c", "sleep 5 && node dist/index.js"]
+    ports:
+      - "19080:80"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - EZTV_URL=https://eztv.re
+      - YTS_URL=https://yts.lt
+      - TGX_URL=https://torrentgalaxy.hair
+      - PIRATEBAY_URL=https://thepiratebay.org
+      - X1337X_URL=https://1337x.to
+      - FLARESOLVERR_SESSIONS=10
+      - FLARESOLVERR_URL=http://flaresolverr:8191
+    volumes:
+      - ./data/imdb:/app/data/imdb
