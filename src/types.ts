@@ -7,7 +7,6 @@ export class BadRequestError extends Error {
 
 export type Stream = {
   name?: string;
-  title?: string;
   description?: string;
   url?: string;
   infoHash?: string;

@@ -196,7 +196,6 @@ export const scrapePirateBayStreams = async (
       });
       return {
         name: display.name,
-        title: display.title,
         description: display.description,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources,

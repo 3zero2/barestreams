@@ -223,7 +223,6 @@ export const scrapeX1337xStreams = async (
       });
       return {
         name: display.name,
-        title: display.title,
         description: display.description,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources,

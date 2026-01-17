@@ -89,7 +89,7 @@ const normalizeBingeSegment = (value: string): string =>
     .replace(/^-+|-+$/g, "");
 
 const extractStreamQuality = (stream: Stream): string | null => {
-  const text = [stream.title, stream.description, stream.name].filter(Boolean).join(" ");
+  const text = [stream.description, stream.name].filter(Boolean).join(" ");
   return extractQualityHint(text);
 };
 

@@ -277,7 +277,6 @@ const scrapeSearchStreams = async (
       });
       return {
         name: display.name,
-        title: display.title,
         description: display.description,
         infoHash: parsedMagnet.infoHash,
         sources: parsedMagnet.sources
@@ -311,7 +310,7 @@ const matchesEpisode = (torrent: EztvTorrent, season?: number, episode?: number)
 const buildBehaviorHints = (torrent: EztvTorrent): Stream["behaviorHints"] | undefined => {
   const hints: Stream["behaviorHints"] = {};
   if (typeof torrent.size_bytes === "number" && torrent.size_bytes > 0) {
-    // hints.videoSize = torrent.size_bytes;
+    hints.videoSize = torrent.size_bytes;
   }
   if (torrent.filename) {
     hints.filename = torrent.filename;
@@ -386,10 +385,9 @@ export const scrapeEztvStreams = async (
       });
       return {
         name: display.name,
-        title: display.title,
         description: display.description,
         infoHash: parsedMagnet.infoHash,
-        // sources: parsedMagnet.sources,
+        sources: parsedMagnet.sources,
         behaviorHints: buildBehaviorHints(torrent),
         seeders: torrent.seeds
       };

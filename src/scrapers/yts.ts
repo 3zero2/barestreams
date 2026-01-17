@@ -91,7 +91,6 @@ export const scrapeYtsStreams = async (
       });
       return {
         name: display.name,
-        title: display.title,
         description: display.description,
         infoHash: torrent.hash.toLowerCase(),
         behaviorHints: buildBehaviorHints(torrent),
