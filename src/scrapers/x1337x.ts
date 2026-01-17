@@ -5,7 +5,7 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import type { Stream, StreamResponse } from "../types.js";
 import { fetchText, normalizeBaseUrl } from "./http.js";
-import { buildQueries, matchesEpisode, normalizeQuery } from "./query.js";
+import { buildQueries, matchesEpisode } from "./query.js";
 
 type X1337xLink = {
   name: string;
@@ -159,7 +159,7 @@ export const scrapeX1337xStreams = async (
   baseUrls: string[],
   detailLimit = 10
 ): Promise<StreamResponse> => {
-  const { baseTitle, query, episodeSuffix } = await buildQueries(parsed);
+  const { baseTitle, query, fallbackQuery, episodeSuffix } = await buildQueries(parsed);
   const searchLimit = Math.max(1, detailLimit);
   const links: X1337xLink[] = [];
 
@@ -172,12 +172,11 @@ export const scrapeX1337xStreams = async (
   }
 
   let filteredLinks = links;
-  if (links.length === 0 && episodeSuffix) {
+  if (links.length === 0 && fallbackQuery) {
     for (const baseUrl of baseUrls) {
       if (filteredLinks.length >= searchLimit) {
         break;
       }
-      const fallbackQuery = normalizeQuery(baseTitle);
       const batch = await searchX1337x(baseUrl, fallbackQuery, searchLimit - filteredLinks.length);
       filteredLinks.push(...batch);
     }

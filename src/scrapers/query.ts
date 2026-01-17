@@ -64,14 +64,29 @@ export const matchesEpisode = (name: string | undefined, season?: number, episod
 
 export const buildQueries = async (
   parsed: ParsedStremioId
-): Promise<{ baseTitle: string; query: string; episodeSuffix: string | null }> => {
+): Promise<{
+  baseTitle: string;
+  query: string;
+  fallbackQuery: string | null;
+  episodeSuffix: string | null;
+}> => {
   const basics = await getTitleBasics(parsed.baseId);
   const baseTitle = basics?.primaryTitle || basics?.originalTitle || parsed.baseId;
   const episodeSuffix = formatEpisodeSuffix(parsed.season, parsed.episode);
   const isSeries = isSeriesTitleType(basics?.titleType) || Boolean(episodeSuffix);
 
   if (isSeries && episodeSuffix) {
-    return { baseTitle, query: normalizeQuery(`${baseTitle} ${episodeSuffix}`), episodeSuffix };
+    const query = normalizeQuery(`${baseTitle} ${episodeSuffix}`);
+    return { baseTitle, query, fallbackQuery: normalizeQuery(baseTitle), episodeSuffix };
   }
-  return { baseTitle, query: normalizeQuery(baseTitle), episodeSuffix: null };
+  const yearSuffix =
+    !isSeries && typeof basics?.startYear === "number" ? ` ${basics.startYear}` : "";
+  const query = normalizeQuery(`${baseTitle}${yearSuffix}`);
+  const fallbackQuery = normalizeQuery(baseTitle);
+  return {
+    baseTitle,
+    query,
+    fallbackQuery: fallbackQuery !== query ? fallbackQuery : null,
+    episodeSuffix: null
+  };
 };

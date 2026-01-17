@@ -4,7 +4,7 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import type { Stream, StreamResponse } from "../types.js";
 import { fetchJson, normalizeBaseUrl } from "./http.js";
-import { buildQueries, matchesEpisode, normalizeQuery } from "./query.js";
+import { buildQueries, matchesEpisode } from "./query.js";
 
 type PirateBayResult = {
   title?: string;
@@ -121,7 +121,7 @@ export const scrapePirateBayStreams = async (
   pirateBayUrls: string[],
   type: "movie" | "series"
 ): Promise<StreamResponse> => {
-  const { baseTitle, query, episodeSuffix } = await buildQueries(parsed);
+  const { baseTitle, query, fallbackQuery, episodeSuffix } = await buildQueries(parsed);
   const categories = type === "movie" ? MOVIE_CATEGORIES : SERIES_CATEGORIES;
   const fetchResultsForQuery = async (searchQuery: string): Promise<PirateBayResult[]> => {
     const tasks = pirateBayUrls.flatMap((baseUrl) =>
@@ -157,8 +157,7 @@ export const scrapePirateBayStreams = async (
   const results = await fetchResultsForQuery(query);
 
   let filtered = results;
-  if (results.length === 0 && episodeSuffix) {
-    const fallbackQuery = normalizeQuery(baseTitle);
+  if (results.length === 0 && fallbackQuery) {
     filtered = await fetchResultsForQuery(fallbackQuery);
   }
 

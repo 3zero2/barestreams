@@ -5,7 +5,7 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import type { Stream, StreamResponse } from "../types.js";
 import { fetchText, normalizeBaseUrl } from "./http.js";
-import { buildQueries, matchesEpisode, normalizeQuery } from "./query.js";
+import { buildQueries, matchesEpisode } from "./query.js";
 
 type TorrentGalaxyLink = {
   name: string;
@@ -163,7 +163,7 @@ export const scrapeTorrentGalaxyStreams = async (
   parsed: ParsedStremioId,
   tgxUrls: string[]
 ): Promise<StreamResponse> => {
-  const { baseTitle, query, episodeSuffix } = await buildQueries(parsed);
+  const { baseTitle, query, fallbackQuery, episodeSuffix } = await buildQueries(parsed);
   const links: TorrentGalaxyLink[] = [];
 
   for (const baseUrl of tgxUrls) {
@@ -175,12 +175,11 @@ export const scrapeTorrentGalaxyStreams = async (
   }
 
   let filteredLinks = links;
-  if (links.length === 0 && episodeSuffix) {
+  if (links.length === 0 && fallbackQuery) {
     for (const baseUrl of tgxUrls) {
       if (filteredLinks.length >= 20) {
         break;
       }
-      const fallbackQuery = normalizeQuery(baseTitle);
       const batch = await searchTorrentGalaxy(baseUrl, fallbackQuery, 20 - filteredLinks.length);
       filteredLinks.push(...batch);
     }

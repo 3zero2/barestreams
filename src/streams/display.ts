@@ -8,6 +8,7 @@ export type StreamDisplayOptions = {
   quality?: string | null;
   source?: string | null;
   seeders?: number;
+  seedersLabel?: string | null;
   sizeBytes?: number | null;
   sizeLabel?: string | null;
 };
@@ -62,11 +63,14 @@ const formatBytes = (bytes: number): string => {
 
 const formatInfoLine = (
   seeders?: number,
+  seedersLabel?: string | null,
   sizeBytes?: number | null,
   sizeLabel?: string | null,
   sourceLabel?: string | null
 ): string => {
-  const seederCount = typeof seeders === "number" && seeders > 0 ? seeders : 0;
+  const seederCount =
+    seedersLabel?.trim() ||
+    (typeof seeders === "number" && seeders > 0 ? seeders.toString() : "0");
   let sizeText: string | null = null;
   if (typeof sizeBytes === "number" && sizeBytes > 0) {
     sizeText = formatBytes(sizeBytes);
@@ -114,6 +118,7 @@ export const formatStreamDisplay = (options: StreamDisplayOptions): {
   const slugDisplay = slugLine;
   const infoLine = formatInfoLine(
     options.seeders,
+    options.seedersLabel ?? null,
     options.sizeBytes ?? null,
     options.sizeLabel ?? null,
     sourceLabel

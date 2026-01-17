@@ -81,12 +81,14 @@ export const scrapeYtsStreams = async (
       const imdbTitle = movie.title_long || movie.title || "YTS";
       const torrentName = `${imdbTitle} ${torrent.quality} ${torrent.type}`.trim();
       const qualityLabel = [torrent.quality, torrent.type].filter(Boolean).join(" ");
+      const seedersLabel = torrent.seeds === 100 ? "100+" : null;
       const display = formatStreamDisplay({
         imdbTitle,
         torrentName,
         quality: qualityLabel,
         source: "YTS",
         seeders: torrent.seeds,
+        seedersLabel,
         sizeBytes: torrent.size_bytes
       });
       return {
