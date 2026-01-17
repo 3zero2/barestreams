@@ -10,10 +10,11 @@ export const isSeriesTitleType = (titleType?: string): boolean => {
 };
 
 export const normalizeQuery = (value: string): string => {
-  return value
+  const normalized = value
     .replace(/[^a-zA-Z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  return normalized.replace(/\b(\w+)\s+s\b/g, "$1s");
 };
 
 export const formatEpisodeSuffix = (season?: number, episode?: number): string | null => {

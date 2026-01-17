@@ -123,48 +123,43 @@ export const scrapePirateBayStreams = async (
 ): Promise<StreamResponse> => {
   const { baseTitle, query, episodeSuffix } = await buildQueries(parsed);
   const categories = type === "movie" ? MOVIE_CATEGORIES : SERIES_CATEGORIES;
-  const results: PirateBayResult[] = [];
-
-  for (const baseUrl of pirateBayUrls) {
-    if (results.length >= 20) {
-      break;
-    }
-    for (const category of categories) {
+  const fetchResultsForQuery = async (searchQuery: string): Promise<PirateBayResult[]> => {
+    const tasks = pirateBayUrls.flatMap((baseUrl) =>
+      categories.map((category) => ({
+        baseUrl,
+        category
+      }))
+    );
+    const responses = await Promise.allSettled(
+      tasks.map(({ baseUrl, category }) => {
+        const apiBase = resolveApiBase(baseUrl);
+        return fetchJson<PirateBayApiResult[]>(buildSearchUrl(apiBase, searchQuery, category));
+      })
+    );
+    const results: PirateBayResult[] = [];
+    for (let index = 0; index < tasks.length; index += 1) {
       if (results.length >= 20) {
         break;
       }
-      const apiBase = resolveApiBase(baseUrl);
-      const payload = await fetchJson<PirateBayApiResult[]>(
-        buildSearchUrl(apiBase, query, category)
-      );
+      const response = responses[index];
+      if (response.status !== "fulfilled") {
+        continue;
+      }
+      const payload = response.value;
       if (!payload || !Array.isArray(payload)) {
         continue;
       }
       results.push(...parseSearchResults(payload, 20 - results.length));
     }
-  }
+    return results;
+  };
+
+  const results = await fetchResultsForQuery(query);
 
   let filtered = results;
   if (results.length === 0 && episodeSuffix) {
-    for (const baseUrl of pirateBayUrls) {
-      if (filtered.length >= 20) {
-        break;
-      }
-      for (const category of categories) {
-        if (filtered.length >= 20) {
-          break;
-        }
-        const fallbackQuery = normalizeQuery(baseTitle);
-        const apiBase = resolveApiBase(baseUrl);
-        const payload = await fetchJson<PirateBayApiResult[]>(
-          buildSearchUrl(apiBase, fallbackQuery, category)
-        );
-        if (!payload || !Array.isArray(payload)) {
-          continue;
-        }
-        filtered.push(...parseSearchResults(payload, 20 - filtered.length));
-      }
-    }
+    const fallbackQuery = normalizeQuery(baseTitle);
+    filtered = await fetchResultsForQuery(fallbackQuery);
   }
 
   if (episodeSuffix) {
