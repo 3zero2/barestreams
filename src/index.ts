@@ -33,6 +33,7 @@ const start = async (): Promise<void> => {
 		count: config.flareSolverrSessions,
 		prefix: "lazy-1337x",
 		warmupUrls: config.x1337xUrls,
+		refreshIntervalMs: config.flareSolverrSessionRefreshMs,
 	});
 	await ensureImdbDatasets();
 	const addonInterface = createAddonInterface(config);

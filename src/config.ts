@@ -6,6 +6,7 @@ export type AppConfig = {
 	pirateBayUrls: string[];
 	x1337xUrls: string[];
 	flareSolverrSessions: number;
+	flareSolverrSessionRefreshMs: number;
 };
 
 const parseUrls = (raw: string): string[] =>
@@ -51,6 +52,12 @@ export const loadConfig = (): AppConfig => {
 		1,
 		Number.parseInt(flareSolverrRaw, 10) || 10,
 	);
+	const flareSolverrRefreshRaw =
+		process.env.FLARESOLVERR_SESSION_REFRESH_MS || "3600000";
+	const flareSolverrSessionRefreshMs = Math.max(
+		0,
+		Number.parseInt(flareSolverrRefreshRaw, 10) || 0,
+	);
 
 	const redisUrl = process.env.REDIS_URL ?? "redis://localhost:6379";
 
@@ -62,5 +69,6 @@ export const loadConfig = (): AppConfig => {
 		pirateBayUrls,
 		x1337xUrls,
 		flareSolverrSessions,
+		flareSolverrSessionRefreshMs,
 	};
 };

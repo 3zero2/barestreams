@@ -5,6 +5,8 @@ const flareSolverrUrl = process.env.FLARESOLVERR_URL ?? "http://localhost:8191";
 const flareSolverrSessions: string[] = [];
 let flareSolverrSessionIndex = 0;
 let flareSolverrSessionInitAttempted = false;
+let flareSolverrRefreshTimer: NodeJS.Timeout | null = null;
+let flareSolverrRefreshInFlight = false;
 
 type FetchOptions = {
 	timeoutMs?: number;
@@ -120,6 +122,37 @@ const createFlareSolverrSession = async (
 	}
 };
 
+const destroyFlareSolverrSession = async (
+	session: string,
+	timeoutMs: number,
+): Promise<boolean> => {
+	if (!flareSolverrUrl) {
+		return false;
+	}
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
+	try {
+		const response = await fetch(`${flareSolverrUrl}/v1`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				cmd: "sessions.destroy",
+				session,
+			}),
+			signal: controller.signal,
+		});
+		if (!response.ok) {
+			return false;
+		}
+		const payload = (await response.json()) as FlareSolverrResponse;
+		return payload.status === "ok";
+	} catch {
+		return false;
+	} finally {
+		clearTimeout(timeout);
+	}
+};
+
 const getNextFlareSolverrSession = (): string | undefined => {
 	if (flareSolverrSessions.length === 0) {
 		return undefined;
@@ -132,11 +165,55 @@ const getNextFlareSolverrSession = (): string | undefined => {
 	return session;
 };
 
+const refreshFlareSolverrSessions = async (options: {
+	timeoutMs: number;
+	warmupUrl?: string;
+}): Promise<void> => {
+	if (flareSolverrRefreshInFlight || flareSolverrSessions.length === 0) {
+		return;
+	}
+	const warmupUrl = options.warmupUrl;
+	if (!warmupUrl) {
+		return;
+	}
+	flareSolverrRefreshInFlight = true;
+	try {
+		for (let index = 0; index < flareSolverrSessions.length; index += 1) {
+			const session = flareSolverrSessions[index];
+			const warmed = await fetchTextViaFlareSolverr(
+				warmupUrl,
+				options.timeoutMs,
+				session,
+			);
+			if (warmed) {
+				continue;
+			}
+			await destroyFlareSolverrSession(session, options.timeoutMs);
+			const recreated = await createFlareSolverrSession(
+				session,
+				options.timeoutMs,
+			);
+			if (!recreated) {
+				continue;
+			}
+			flareSolverrSessions[index] = recreated;
+			await fetchTextViaFlareSolverr(
+				warmupUrl,
+				options.timeoutMs,
+				recreated,
+			);
+		}
+	} finally {
+		flareSolverrRefreshInFlight = false;
+	}
+};
+
 export const initFlareSolverrSessions = async (options?: {
 	count?: number;
 	prefix?: string;
 	timeoutMs?: number;
 	warmupUrls?: string[];
+	refreshIntervalMs?: number;
 }): Promise<void> => {
 	if (!flareSolverrUrl || flareSolverrSessionInitAttempted) {
 		return;
@@ -166,6 +243,11 @@ export const initFlareSolverrSessions = async (options?: {
 				fetchTextViaFlareSolverr(warmupUrl, timeoutMs, session),
 			),
 		);
+	}
+	if (warmupUrl && (options?.refreshIntervalMs ?? 0) > 0) {
+		flareSolverrRefreshTimer = setInterval(() => {
+			void refreshFlareSolverrSessions({ timeoutMs, warmupUrl });
+		}, options?.refreshIntervalMs ?? 0);
 	}
 };
 
