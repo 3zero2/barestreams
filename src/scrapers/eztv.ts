@@ -22,20 +22,16 @@ type EztvTorrent = {
 	torrent_url?: string;
 	magnet_url?: string;
 	seeds?: number;
-	size_bytes?: number;
+	size_bytes?: string;
 	season?: number;
 	episode?: number;
 };
 
 type EztvResponse = {
-	torrents?: EztvTorrentRaw[];
+	torrents?: EztvTorrent[];
 	torrents_count?: number;
 	limit?: number;
 	page?: number;
-};
-
-type EztvTorrentRaw = Omit<EztvTorrent, "size_bytes"> & {
-	size_bytes?: number | string;
 };
 
 const EZTV_IMDB_VARIANTS = 2;
@@ -75,22 +71,12 @@ const getImdbDigits = (baseId: string): string => baseId.replace(/^tt/, "");
 const DEFAULT_LIMIT = 30;
 const MAX_PAGES = 50;
 
-const coerceSizeBytes = (value: unknown): number | undefined => {
-	if (typeof value === "number") {
-		return Number.isFinite(value) && value > 0 ? value : undefined;
+const coerceSizeBytes = (value?: string): number | undefined => {
+	if (!value) {
+		return undefined;
 	}
-	if (typeof value === "string") {
-		const parsed = Number(value);
-		return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
-	}
-	return undefined;
-};
-
-const normalizeTorrent = (torrent: EztvTorrentRaw): EztvTorrent => {
-	return {
-		...torrent,
-		size_bytes: coerceSizeBytes(torrent.size_bytes),
-	};
+	const parsed = Number(value);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
 };
 
 const buildApiUrl = (baseUrl: string, imdbId: string, page: number): string => {
@@ -119,7 +105,7 @@ const fetchAllTorrents = async (
 		return torrents;
 	}
 
-	const firstBatch = (firstResponse.torrents ?? []).map(normalizeTorrent);
+	const firstBatch = firstResponse.torrents ?? [];
 	torrents.push(...firstBatch);
 	if (shouldAbort(context)) {
 		return torrents;
@@ -168,7 +154,7 @@ const fetchAllTorrents = async (
 		);
 
 		for (const response of responses) {
-			const batch = (response?.torrents ?? []).map(normalizeTorrent);
+			const batch = response?.torrents ?? [];
 			torrents.push(...batch);
 			if (batch.length < pageLimit) {
 				break;
@@ -427,8 +413,9 @@ const buildBehaviorHints = (
 	torrent: EztvTorrent,
 ): Stream["behaviorHints"] | undefined => {
 	const hints: Stream["behaviorHints"] = {};
-	if (typeof torrent.size_bytes === "number" && torrent.size_bytes > 0) {
-		hints.videoSize = torrent.size_bytes;
+	const sizeBytes = coerceSizeBytes(torrent.size_bytes);
+	if (typeof sizeBytes === "number") {
+		hints.videoSize = sizeBytes;
 	}
 	if (torrent.filename) {
 		hints.filename = torrent.filename;
@@ -513,7 +500,7 @@ export const scrapeEztvStreams = async (
 				quality,
 				source: "EZTV",
 				seeders: torrent.seeds,
-				sizeBytes: torrent.size_bytes,
+				sizeBytes: coerceSizeBytes(torrent.size_bytes),
 			});
 			return {
 				name: display.name,
