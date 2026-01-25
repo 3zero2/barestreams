@@ -5,7 +5,7 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { config } from "../config.js";
 import type { Stream, StreamResponse } from "../types.js";
-import { fetchText, normalizeBaseUrl } from "./http.js";
+import { fetchText, normalizeBaseUrl, ScraperKey } from "./http.js";
 import { buildQueries, matchesEpisode } from "./query.js";
 import { logScraperWarning } from "./logging.js";
 
@@ -23,8 +23,7 @@ type X1337xDetails = {
 
 const fetchHtml = async (url: string): Promise<string | null> => {
 	const html = await fetchText(url, {
-		useFlareSolverr: true,
-		useFlareSolverrSessionPool: true,
+		scraper: ScraperKey.X1337x,
 	});
 	return html;
 };

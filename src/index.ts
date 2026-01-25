@@ -31,7 +31,7 @@ const start = async (): Promise<void> => {
 	} catch {
 		console.info("Redis unavailable, continuing without cache");
 	}
-	if (config.flareSolverrSessions > 0 && config.x1337xUrls.length > 0) {
+	if (config.flareSolverrUrl) {
 		await initFlareSolverrSessions();
 	}
 	await ensureImdbDatasets();

@@ -1,7 +1,7 @@
 import type { ParsedStremioId } from "../parsing/stremioId.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { config } from "../config.js";
-import { fetchJson, normalizeBaseUrl } from "./http.js";
+import { fetchJson, normalizeBaseUrl, ScraperKey } from "./http.js";
 import type { Stream, StreamResponse } from "../types.js";
 import { logScraperWarning } from "./logging.js";
 
@@ -61,7 +61,9 @@ export const scrapeYtsStreams = async (
 	const imdbId = parsed.baseId;
 	const responses = await Promise.allSettled(
 		config.ytsUrls.map((baseUrl) =>
-			fetchJson<YtsResponse>(buildListUrl(baseUrl, imdbId)),
+			fetchJson<YtsResponse>(buildListUrl(baseUrl, imdbId), {
+				scraper: ScraperKey.Yts,
+			}),
 		),
 	);
 

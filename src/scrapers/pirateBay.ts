@@ -4,7 +4,7 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { config } from "../config.js";
 import type { Stream, StreamResponse } from "../types.js";
-import { fetchJson, normalizeBaseUrl } from "./http.js";
+import { fetchJson, normalizeBaseUrl, ScraperKey } from "./http.js";
 import { logScraperWarning } from "./logging.js";
 import { buildQueries, matchesEpisode } from "./query.js";
 
@@ -152,6 +152,7 @@ export const scrapePirateBayStreams = async (
 				}
 				return fetchJson<PirateBayApiResult[]>(
 					buildSearchUrl(apiBase, searchQuery, category),
+					{ scraper: ScraperKey.Tpb },
 				);
 			}),
 		);

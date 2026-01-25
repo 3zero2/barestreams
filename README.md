@@ -41,19 +41,22 @@ docker compose -f docker-compose.test.yml up --abort-on-container-exit --build
 - `APIBAY_URL`: Comma-separated list of ApiBay base URLs to try in order.
 - `X1337X_URL`: Comma-separated list of 1337x base URLs to try in order.
 - `FLARESOLVERR_URL`: FlareSolverr base URL (optional).
-- `FLARESOLVERR_SESSIONS`: Number of FlareSolverr sessions to keep (optional).
+- `FLARESOLVERR_SESSIONS`: Maximum FlareSolverr sessions per scraper (optional).
+- `FLARESOLVERR_SESSION_REFRESH_MS`: FlareSolverr session refresh interval in ms (optional).
 
 ## Supported scrapers
 
 Remove a scraper URL env var to disable it (for example, omit `EZTV_URL`).
 
-| Scraper | Env var | Content | Requires FlareSolverr |
-| --- | --- | --- | --- |
-| EZTV | `EZTV_URL` | Series | No |
-| YTS | `YTS_URL` | Movies | No |
-| TorrentGalaxy | `TGX_URL` | Movies, Series | No |
-| The Pirate Bay (ApiBay) | `APIBAY_URL` | Movies, Series | No |
-| 1337x | `X1337X_URL` | Movies, Series | Yes |
+| Scraper | Env var | Content |
+| --- | --- | --- |
+| EZTV | `EZTV_URL` | Series |
+| YTS | `YTS_URL` | Movies |
+| TorrentGalaxy | `TGX_URL` | Movies, Series |
+| The Pirate Bay (ApiBay) | `APIBAY_URL` | Movies, Series |
+| 1337x | `X1337X_URL` | Movies, Series |
+
+On startup, the addon probes each scraper front page; if a scraper returns a 401/403, it retries via FlareSolverr and sticks to FlareSolverr for the rest of the process. FlareSolverr is used to bypass Cloudflare checks when detected.
 
 If you keep `gluetun` enabled, copy `.env.example` to `.env` and fill in entries such as:
 

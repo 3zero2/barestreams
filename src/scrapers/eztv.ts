@@ -5,8 +5,9 @@ import type { ParsedStremioId } from "../parsing/stremioId.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { extractQualityHint } from "../streams/quality.js";
 import type { Stream, StreamResponse } from "../types.js";
-import { fetchJson, fetchText, normalizeBaseUrl } from "./http.js";
+import { fetchJson, fetchText, normalizeBaseUrl, ScraperKey } from "./http.js";
 import { logScraperWarning } from "./logging.js";
+import { EZTV_PAGE_CONCURRENCY, EZTV_SEARCH_LINK_LIMIT } from "./limits.js";
 import { formatEpisodeSuffix, parseEpisodeFromText } from "./query.js";
 
 type EztvTorrent = {
@@ -31,7 +32,8 @@ type EztvTorrentRaw = Omit<EztvTorrent, "size_bytes"> & {
 	size_bytes?: number | string;
 };
 
-const fetchHtml = (url: string): Promise<string | null> => fetchText(url);
+const fetchHtml = (url: string): Promise<string | null> =>
+	fetchText(url, { scraper: ScraperKey.Eztv });
 
 const getImdbDigits = (baseId: string): string => baseId.replace(/^tt/, "");
 const DEFAULT_LIMIT = 30;
@@ -69,7 +71,9 @@ const fetchAllTorrents = async (
 ): Promise<EztvTorrent[]> => {
 	const torrents: EztvTorrent[] = [];
 	const firstUrl = buildApiUrl(baseUrl, imdbId, 1);
-	const firstResponse = await fetchJson<EztvResponse>(firstUrl);
+	const firstResponse = await fetchJson<EztvResponse>(firstUrl, {
+		scraper: ScraperKey.Eztv,
+	});
 	if (!firstResponse) {
 		return torrents;
 	}
@@ -102,14 +106,16 @@ const fetchAllTorrents = async (
 		{ length: Math.max(0, lastPage - 1) },
 		(_, index) => index + 2,
 	);
-	const concurrency = 5;
+	const concurrency = EZTV_PAGE_CONCURRENCY;
 
 	for (let i = 0; i < pageNumbers.length; i += concurrency) {
 		const batchPages = pageNumbers.slice(i, i + concurrency);
 		const responses = await Promise.all(
 			batchPages.map(async (page) => {
 				const url = buildApiUrl(baseUrl, imdbId, page);
-				return fetchJson<EztvResponse>(url);
+				return fetchJson<EztvResponse>(url, {
+					scraper: ScraperKey.Eztv,
+				});
 			}),
 		);
 
@@ -283,7 +289,11 @@ const scrapeSearchStreams = async (
 		return { streams: [] };
 	}
 
-	const episodeLinks = extractEpisodeLinks(html, baseUrl, 15);
+	const episodeLinks = extractEpisodeLinks(
+		html,
+		baseUrl,
+		EZTV_SEARCH_LINK_LIMIT,
+	);
 	if (episodeLinks.length === 0) {
 		logScraperWarning("EZTV", "no results", { baseUrl, query });
 		return { streams: [] };

@@ -5,9 +5,10 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { config } from "../config.js";
 import type { Stream, StreamResponse } from "../types.js";
-import { fetchText, normalizeBaseUrl } from "./http.js";
+import { fetchText, normalizeBaseUrl, ScraperKey } from "./http.js";
 import { buildQueries, matchesEpisode } from "./query.js";
 import { logScraperWarning } from "./logging.js";
+import { TGX_DETAIL_LIMIT } from "./limits.js";
 
 type TorrentGalaxyLink = {
 	name: string;
@@ -22,7 +23,8 @@ type TorrentGalaxyDetails = {
 	torrentDownload?: string;
 };
 
-const fetchHtml = (url: string): Promise<string | null> => fetchText(url);
+const fetchHtml = (url: string): Promise<string | null> =>
+	fetchText(url, { scraper: ScraperKey.Tgx });
 
 const buildSearchUrl = (
 	baseUrl: string,
@@ -197,13 +199,13 @@ export const scrapeTorrentGalaxyStreams = async (
 	const links: TorrentGalaxyLink[] = [];
 
 	for (const baseUrl of config.tgxUrls) {
-		if (links.length >= 20) {
+		if (links.length >= TGX_DETAIL_LIMIT) {
 			break;
 		}
 		const batch = await searchTorrentGalaxy(
 			baseUrl,
 			query,
-			20 - links.length,
+			TGX_DETAIL_LIMIT - links.length,
 		);
 		links.push(...batch);
 	}
@@ -211,13 +213,13 @@ export const scrapeTorrentGalaxyStreams = async (
 	let filteredLinks = links;
 	if (links.length === 0 && fallbackQuery) {
 		for (const baseUrl of config.tgxUrls) {
-			if (filteredLinks.length >= 20) {
+			if (filteredLinks.length >= TGX_DETAIL_LIMIT) {
 				break;
 			}
 			const batch = await searchTorrentGalaxy(
 				baseUrl,
 				fallbackQuery,
-				20 - filteredLinks.length,
+				TGX_DETAIL_LIMIT - filteredLinks.length,
 			);
 			filteredLinks.push(...batch);
 		}
