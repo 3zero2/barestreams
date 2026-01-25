@@ -8,10 +8,10 @@ Minimal Stremio addon that serves torrent stream results with Redis-backed cachi
 docker compose up --build
 ```
 
-Run without the VPN gateway (no `gluetun` dependency):
+Run with the VPN gateway (`gluetun`):
 
 ```bash
-docker compose -f docker-compose.no-gluetun.yml up --build
+docker compose -f docker-compose.gluetun.yml up --build
 ```
 
 Addon will be available at:
@@ -20,11 +20,11 @@ Addon will be available at:
 
 ### Optional services
 
-The Docker setup includes optional containers that you can remove if you don't need them:
+The Docker setup includes optional containers that you can remove if you don't need them. The VPN gateway is only included in `docker-compose.gluetun.yml`:
 
 - `gluetun`: VPN gateway ([qdm12/gluetun](https://github.com/qdm12/gluetun)). Current config is NordVPN-specific; Gluetun supports other providers as well and requires `.env` values if enabled.
-- `redis`: Caching backend. If disabled, remove `REDIS_URL`.
-- `flaresolverr`: Used by some scrapers to bypass protections ([FlareSolverr/FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)). If disabled, remove `FLARESOLVERR_URL`.
+- `redis`: Caching backend. If disabled, remove `REDIS_*` configurations.
+- `flaresolverr`: Used by some scrapers to bypass cloudflare protections ([FlareSolverr/FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)). If disabled, remove `FLARESOLVERR_*` configurations.
 
 ## Run e2e tests with FlareSolverr
 

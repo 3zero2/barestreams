@@ -1,0 +1,58 @@
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    cap_add:
+      - NET_ADMIN
+    env_file:
+      - .env
+    environment:
+      - VPN_SERVICE_PROVIDER=nordvpn
+      - VPN_TYPE=openvpn
+      - OPENVPN_USER=${NORDVPN_USER}
+      - OPENVPN_PASSWORD=${NORDVPN_PASS}
+      - SERVER_COUNTRIES=${NORDVPN_SERVER_COUNTRIES}
+      - TZ=${TZ}
+    ports:
+      - "19080:80"
+
+  redis:
+    image: redis:7-alpine
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    network_mode: "service:gluetun"
+
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    depends_on:
+      gluetun:
+        condition: service_healthy
+    environment:
+      - LOG_LEVEL=info
+    network_mode: "service:gluetun"
+
+  barestreams:
+    build: .
+    depends_on:
+      gluetun:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      flaresolverr:
+        condition: service_started
+    command: ["sh", "-c", "sleep 5 && node dist/index.js"]
+    network_mode: "service:gluetun"
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://localhost:6379
+      - REDIS_TTL_HOURS=168
+      - EZTV_URL=https://eztv.re
+      - YTS_URL=https://yts.lt
+      - TGX_URL=https://torrentgalaxy.hair
+      - APIBAY_URL=https://apibay.org
+      - X1337X_URL=https://1337x.to
+      - FLARESOLVERR_SESSIONS=10
+      - FLARESOLVERR_URL=http://localhost:8191
+    volumes:
+      - ./data/imdb:/app/data/imdb
