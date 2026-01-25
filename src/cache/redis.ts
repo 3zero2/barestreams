@@ -1,7 +1,13 @@
 import { createClient, type RedisClientType } from "redis";
 import { config } from "../config.js";
 
-const CACHE_TTL_SECONDS = 86400; // 24 hours
+const getCacheTtlSeconds = (): number | null => {
+	if (!config.redisTtlHours) {
+		return null;
+	}
+
+	return Math.max(1, Math.round(config.redisTtlHours * 3600));
+};
 
 let client: RedisClientType | null = null;
 
@@ -47,5 +53,11 @@ export const setCache = async (
 		return;
 	}
 
-	await client.set(key, value, { EX: CACHE_TTL_SECONDS });
+	const ttlSeconds = getCacheTtlSeconds();
+	if (ttlSeconds) {
+		await client.set(key, value, { EX: ttlSeconds });
+		return;
+	}
+
+	await client.set(key, value);
 };

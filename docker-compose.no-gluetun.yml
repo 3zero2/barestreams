@@ -17,6 +17,7 @@ services:
       - "19080:80"
     environment:
       - REDIS_URL=redis://redis:6379
+      - REDIS_TTL_HOURS=168
       - EZTV_URL=https://eztv.re
       - YTS_URL=https://yts.lt
       - TGX_URL=https://torrentgalaxy.hair

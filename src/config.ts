@@ -1,5 +1,6 @@
 export type AppConfig = {
 	redisUrl: string | null;
+	redisTtlHours: number | null;
 	eztvUrls: string[];
 	ytsUrls: string[];
 	tgxUrls: string[];
@@ -50,8 +51,16 @@ export const loadConfig = (): AppConfig => {
 	const redisUrlRaw = process.env.REDIS_URL?.trim() ?? "";
 	const redisUrl = redisUrlRaw ? redisUrlRaw : null;
 
+	const redisTtlRaw = process.env.REDIS_TTL_HOURS?.trim() ?? "";
+	const redisTtlParsed = Number.parseInt(redisTtlRaw, 10);
+	const redisTtlHours =
+		Number.isFinite(redisTtlParsed) && redisTtlParsed > 0
+			? redisTtlParsed
+			: null;
+
 	return {
 		redisUrl,
+		redisTtlHours,
 		eztvUrls,
 		ytsUrls,
 		tgxUrls,
