@@ -5,10 +5,15 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { config } from "../config.js";
 import type { Stream, StreamResponse } from "../types.js";
-import { fetchText, normalizeBaseUrl, ScraperKey } from "./http.js";
+import type { FlareSolverrPoolConfig } from "./flareSolverrPools.js";
+import {
+	applyFlareSolverrSessionCap,
+	registerFlareSolverrPoolConfigProvider,
+} from "./flareSolverrPools.js";
+import { fetchText, normalizeBaseUrl } from "./http.js";
+import { ScraperKey } from "./keys.js";
 import { buildQueries, matchesEpisode } from "./query.js";
 import { logScraperWarning } from "./logging.js";
-import { TGX_DETAIL_LIMIT } from "./limits.js";
 import { shouldAbort, type ScrapeContext } from "./context.js";
 
 type TorrentGalaxyLink = {
@@ -23,6 +28,24 @@ type TorrentGalaxyDetails = {
 	magnetURI?: string;
 	torrentDownload?: string;
 };
+
+const TGX_DETAIL_LIMIT = 20;
+
+const buildFlareSolverrPoolConfig = (): FlareSolverrPoolConfig | null => {
+	if (config.tgxUrls.length === 0) {
+		return null;
+	}
+	return {
+		key: ScraperKey.Tgx,
+		sessionCount: applyFlareSolverrSessionCap(TGX_DETAIL_LIMIT),
+		warmupUrl: normalizeBaseUrl(config.tgxUrls[0]),
+	};
+};
+
+registerFlareSolverrPoolConfigProvider(
+	ScraperKey.Tgx,
+	buildFlareSolverrPoolConfig,
+);
 
 const fetchHtml = (
 	url: string,

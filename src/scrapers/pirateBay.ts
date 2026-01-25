@@ -4,7 +4,13 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { config } from "../config.js";
 import type { Stream, StreamResponse } from "../types.js";
-import { fetchJson, normalizeBaseUrl, ScraperKey } from "./http.js";
+import type { FlareSolverrPoolConfig } from "./flareSolverrPools.js";
+import {
+	applyFlareSolverrSessionCap,
+	registerFlareSolverrPoolConfigProvider,
+} from "./flareSolverrPools.js";
+import { fetchJson, normalizeBaseUrl } from "./http.js";
+import { ScraperKey } from "./keys.js";
 import { logScraperWarning } from "./logging.js";
 import { buildQueries, matchesEpisode } from "./query.js";
 import { shouldAbort, type ScrapeContext } from "./context.js";
@@ -28,6 +34,32 @@ type PirateBayApiResult = {
 
 const MOVIE_CATEGORIES = [207, 201];
 const SERIES_CATEGORIES = [208, 205];
+const PIRATEBAY_CATEGORY_COUNT = 2;
+
+const resolveApiBayWarmupUrl = (baseUrl: string): string => {
+	const normalized = normalizeBaseUrl(baseUrl);
+	const params = new URLSearchParams({ q: "matrix", cat: "0" });
+	return `${normalized}/q.php?${params.toString()}`;
+};
+
+const buildFlareSolverrPoolConfig = (): FlareSolverrPoolConfig | null => {
+	const baseCount = config.apiBayUrls.length;
+	if (baseCount === 0) {
+		return null;
+	}
+	return {
+		key: ScraperKey.Tpb,
+		sessionCount: applyFlareSolverrSessionCap(
+			Math.max(1, baseCount * PIRATEBAY_CATEGORY_COUNT),
+		),
+		warmupUrl: resolveApiBayWarmupUrl(config.apiBayUrls[0]),
+	};
+};
+
+registerFlareSolverrPoolConfigProvider(
+	ScraperKey.Tpb,
+	buildFlareSolverrPoolConfig,
+);
 
 const resolveApiBase = (baseUrl: string): string | null => {
 	const normalized = normalizeBaseUrl(baseUrl);

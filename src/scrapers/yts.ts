@@ -1,7 +1,13 @@
 import type { ParsedStremioId } from "../parsing/stremioId.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { config } from "../config.js";
-import { fetchJson, normalizeBaseUrl, ScraperKey } from "./http.js";
+import type { FlareSolverrPoolConfig } from "./flareSolverrPools.js";
+import {
+	applyFlareSolverrSessionCap,
+	registerFlareSolverrPoolConfigProvider,
+} from "./flareSolverrPools.js";
+import { fetchJson, normalizeBaseUrl } from "./http.js";
+import { ScraperKey } from "./keys.js";
 import type { Stream, StreamResponse } from "../types.js";
 import { logScraperWarning } from "./logging.js";
 import { shouldAbort, type ScrapeContext } from "./context.js";
@@ -30,6 +36,40 @@ type YtsResponse = {
 
 const ensureApiRoot = (baseUrl: string): string =>
 	baseUrl.includes("/api/") ? baseUrl : `${baseUrl}/api/v2`;
+
+const resolveYtsWarmupUrl = (baseUrl: string): string => {
+	try {
+		const url = new URL(baseUrl);
+		const apiIndex = url.pathname.indexOf("/api");
+		if (apiIndex >= 0) {
+			const prefix = url.pathname.slice(0, apiIndex);
+			url.pathname = prefix || "/";
+		}
+		url.search = "";
+		url.hash = "";
+		return normalizeBaseUrl(url.toString());
+	} catch {
+		return normalizeBaseUrl(baseUrl);
+	}
+};
+
+const buildFlareSolverrPoolConfig = (): FlareSolverrPoolConfig | null => {
+	if (config.ytsUrls.length === 0) {
+		return null;
+	}
+	return {
+		key: ScraperKey.Yts,
+		sessionCount: applyFlareSolverrSessionCap(
+			Math.max(1, config.ytsUrls.length),
+		),
+		warmupUrl: resolveYtsWarmupUrl(config.ytsUrls[0]),
+	};
+};
+
+registerFlareSolverrPoolConfigProvider(
+	ScraperKey.Yts,
+	buildFlareSolverrPoolConfig,
+);
 
 const buildListUrl = (baseUrl: string, imdbId: string): string => {
 	const normalized = normalizeBaseUrl(baseUrl);

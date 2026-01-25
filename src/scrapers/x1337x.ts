@@ -5,7 +5,13 @@ import { extractQualityHint } from "../streams/quality.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { config } from "../config.js";
 import type { Stream, StreamResponse } from "../types.js";
-import { fetchText, normalizeBaseUrl, ScraperKey } from "./http.js";
+import type { FlareSolverrPoolConfig } from "./flareSolverrPools.js";
+import {
+	applyFlareSolverrSessionCap,
+	registerFlareSolverrPoolConfigProvider,
+} from "./flareSolverrPools.js";
+import { fetchText, normalizeBaseUrl } from "./http.js";
+import { ScraperKey } from "./keys.js";
 import { buildQueries, matchesEpisode } from "./query.js";
 import { logScraperWarning } from "./logging.js";
 import { shouldAbort, type ScrapeContext } from "./context.js";
@@ -21,6 +27,22 @@ type X1337xLink = {
 type X1337xDetails = {
 	magnetURI?: string;
 };
+
+const buildFlareSolverrPoolConfig = (): FlareSolverrPoolConfig | null => {
+	if (config.x1337xUrls.length === 0) {
+		return null;
+	}
+	return {
+		key: ScraperKey.X1337x,
+		sessionCount: applyFlareSolverrSessionCap(config.flareSolverrSessions),
+		warmupUrl: normalizeBaseUrl(config.x1337xUrls[0]),
+	};
+};
+
+registerFlareSolverrPoolConfigProvider(
+	ScraperKey.X1337x,
+	buildFlareSolverrPoolConfig,
+);
 
 const fetchHtml = async (
 	url: string,

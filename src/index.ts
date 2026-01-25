@@ -3,6 +3,7 @@ import { createAddonInterface } from "./addon.js";
 import { initRedis } from "./cache/redis.js";
 import { config } from "./config.js";
 import { ensureImdbDatasets } from "./imdb/index.js";
+import "./scrapers/registerFlareSolverrPools.js";
 import { initFlareSolverrSessions } from "./scrapers/http.js";
 import { BadRequestError } from "./types.js";
 

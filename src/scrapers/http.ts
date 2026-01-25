@@ -1,23 +1,11 @@
 import { config } from "../config.js";
-import {
-	EZTV_IMDB_VARIANTS,
-	EZTV_PAGE_CONCURRENCY,
-	EZTV_SEARCH_LINK_LIMIT,
-	PIRATEBAY_CATEGORY_COUNT,
-	TGX_DETAIL_LIMIT,
-} from "./limits.js";
+import type { FlareSolverrPoolConfig } from "./flareSolverrPools.js";
+import { getFlareSolverrPoolConfigs } from "./flareSolverrPools.js";
+import { ScraperKey } from "./keys.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const USER_AGENT =
 	"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36";
-
-export enum ScraperKey {
-	X1337x = "x1337x",
-	Eztv = "eztv",
-	Tgx = "tgx",
-	Tpb = "tpb",
-	Yts = "yts",
-}
 
 type FlareSolverrPool = {
 	key: ScraperKey;
@@ -57,12 +45,6 @@ type FlareSolverrResponse = {
 		response: string;
 		status: number;
 	};
-};
-
-type FlareSolverrPoolConfig = {
-	key: ScraperKey;
-	sessionCount: number;
-	warmupUrl: string;
 };
 
 export const normalizeBaseUrl = (baseUrl: string): string =>
@@ -387,81 +369,6 @@ const warmupFlareSolverrPool = async (
 	);
 };
 
-const resolveYtsWarmupUrl = (baseUrl: string): string => {
-	try {
-		const url = new URL(baseUrl);
-		const apiIndex = url.pathname.indexOf("/api");
-		if (apiIndex >= 0) {
-			const prefix = url.pathname.slice(0, apiIndex);
-			url.pathname = prefix || "/";
-		}
-		url.search = "";
-		url.hash = "";
-		return normalizeBaseUrl(url.toString());
-	} catch {
-		return normalizeBaseUrl(baseUrl);
-	}
-};
-
-const resolveApiBayWarmupUrl = (baseUrl: string): string => {
-	const normalized = normalizeBaseUrl(baseUrl);
-	const params = new URLSearchParams({ q: "matrix", cat: "0" });
-	return `${normalized}/q.php?${params.toString()}`;
-};
-
-const buildFlareSolverrPoolConfigs = (): FlareSolverrPoolConfig[] => {
-	const configs: FlareSolverrPoolConfig[] = [];
-	const sessionCap = config.flareSolverrSessions;
-	const applySessionCap = (count: number): number =>
-		sessionCap > 0 ? Math.min(sessionCap, count) : 0;
-	if (config.x1337xUrls.length > 0) {
-		configs.push({
-			key: ScraperKey.X1337x,
-			sessionCount: applySessionCap(config.flareSolverrSessions),
-			warmupUrl: normalizeBaseUrl(config.x1337xUrls[0]),
-		});
-	}
-	if (config.eztvUrls.length > 0) {
-		const baseCount = config.eztvUrls.length;
-		const sessionCount = applySessionCap(
-			Math.max(
-				EZTV_PAGE_CONCURRENCY * EZTV_IMDB_VARIANTS * baseCount,
-				EZTV_SEARCH_LINK_LIMIT * baseCount,
-			),
-		);
-		configs.push({
-			key: ScraperKey.Eztv,
-			sessionCount,
-			warmupUrl: normalizeBaseUrl(config.eztvUrls[0]),
-		});
-	}
-	if (config.tgxUrls.length > 0) {
-		configs.push({
-			key: ScraperKey.Tgx,
-			sessionCount: applySessionCap(TGX_DETAIL_LIMIT),
-			warmupUrl: normalizeBaseUrl(config.tgxUrls[0]),
-		});
-	}
-	if (config.apiBayUrls.length > 0) {
-		const baseCount = config.apiBayUrls.length;
-		configs.push({
-			key: ScraperKey.Tpb,
-			sessionCount: applySessionCap(
-				Math.max(1, baseCount * PIRATEBAY_CATEGORY_COUNT),
-			),
-			warmupUrl: resolveApiBayWarmupUrl(config.apiBayUrls[0]),
-		});
-	}
-	if (config.ytsUrls.length > 0) {
-		configs.push({
-			key: ScraperKey.Yts,
-			sessionCount: applySessionCap(Math.max(1, config.ytsUrls.length)),
-			warmupUrl: resolveYtsWarmupUrl(config.ytsUrls[0]),
-		});
-	}
-	return configs;
-};
-
 const initFlareSolverrPool = async (
 	poolConfig: FlareSolverrPoolConfig,
 ): Promise<void> => {
@@ -527,7 +434,7 @@ export const initFlareSolverrSessions = async (): Promise<void> => {
 	if (!flareSolverrUrl) {
 		return;
 	}
-	const poolConfigs = buildFlareSolverrPoolConfigs();
+	const poolConfigs = getFlareSolverrPoolConfigs();
 	if (poolConfigs.length === 0) {
 		return;
 	}

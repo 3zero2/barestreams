@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAddonInterface } from "../src/addon.js";
 import { config } from "../src/config.js";
+import "../src/scrapers/registerFlareSolverrPools.js";
 import { initFlareSolverrSessions } from "../src/scrapers/http.js";
 
 vi.mock("../src/imdb/index.js", () => {

@@ -5,9 +5,14 @@ import type { ParsedStremioId } from "../parsing/stremioId.js";
 import { formatStreamDisplay } from "../streams/display.js";
 import { extractQualityHint } from "../streams/quality.js";
 import type { Stream, StreamResponse } from "../types.js";
-import { fetchJson, fetchText, normalizeBaseUrl, ScraperKey } from "./http.js";
+import type { FlareSolverrPoolConfig } from "./flareSolverrPools.js";
+import {
+	applyFlareSolverrSessionCap,
+	registerFlareSolverrPoolConfigProvider,
+} from "./flareSolverrPools.js";
+import { fetchJson, fetchText, normalizeBaseUrl } from "./http.js";
+import { ScraperKey } from "./keys.js";
 import { logScraperWarning } from "./logging.js";
-import { EZTV_PAGE_CONCURRENCY, EZTV_SEARCH_LINK_LIMIT } from "./limits.js";
 import { formatEpisodeSuffix, parseEpisodeFromText } from "./query.js";
 import { shouldAbort, type ScrapeContext } from "./context.js";
 
@@ -32,6 +37,33 @@ type EztvResponse = {
 type EztvTorrentRaw = Omit<EztvTorrent, "size_bytes"> & {
 	size_bytes?: number | string;
 };
+
+const EZTV_IMDB_VARIANTS = 2;
+const EZTV_PAGE_CONCURRENCY = 5;
+const EZTV_SEARCH_LINK_LIMIT = 15;
+
+const buildFlareSolverrPoolConfig = (): FlareSolverrPoolConfig | null => {
+	const baseCount = config.eztvUrls.length;
+	if (baseCount === 0) {
+		return null;
+	}
+	const sessionCount = applyFlareSolverrSessionCap(
+		Math.max(
+			EZTV_PAGE_CONCURRENCY * EZTV_IMDB_VARIANTS * baseCount,
+			EZTV_SEARCH_LINK_LIMIT * baseCount,
+		),
+	);
+	return {
+		key: ScraperKey.Eztv,
+		sessionCount,
+		warmupUrl: normalizeBaseUrl(config.eztvUrls[0]),
+	};
+};
+
+registerFlareSolverrPoolConfigProvider(
+	ScraperKey.Eztv,
+	buildFlareSolverrPoolConfig,
+);
 
 const fetchHtml = (
 	url: string,
