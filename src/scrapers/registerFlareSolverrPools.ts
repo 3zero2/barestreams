@@ -3,3 +3,4 @@ import "./eztv.js";
 import "./torrentGalaxy.js";
 import "./pirateBay.js";
 import "./yts.js";
+import "./kickass.js";

@@ -9,6 +9,7 @@ import type { ScrapeContext } from "./scrapers/context.js";
 import { scrapeEztvStreams } from "./scrapers/eztv.js";
 import { scrapePirateBayStreams } from "./scrapers/pirateBay.js";
 import { scrapeTorrentGalaxyStreams } from "./scrapers/torrentGalaxy.js";
+import { scrapeKickassStreams } from "./scrapers/kickass.js";
 import { scrapeX1337xStreams } from "./scrapers/x1337x.js";
 import { scrapeYtsStreams } from "./scrapers/yts.js";
 import { extractQualityHint } from "./streams/quality.js";
@@ -216,16 +217,18 @@ export const createAddonInterface = () => {
 		try {
 			responses = await Promise.allSettled(
 				type === "movie"
-					? [
+						? [
 							scrapeYtsStreams(parsed, scrapeContext),
 							scrapeTorrentGalaxyStreams(parsed, scrapeContext),
 							scrapePirateBayStreams(parsed, "movie", scrapeContext),
+							scrapeKickassStreams(parsed, "movie", scrapeContext),
 							scrapeX1337xStreams(parsed, scrapeContext),
 						]
 					: [
 							scrapeEztvStreams(parsed, scrapeContext),
 							scrapeTorrentGalaxyStreams(parsed, scrapeContext),
 							scrapePirateBayStreams(parsed, "series", scrapeContext),
+							scrapeKickassStreams(parsed, "series", scrapeContext),
 							scrapeX1337xStreams(parsed, scrapeContext),
 						],
 			);

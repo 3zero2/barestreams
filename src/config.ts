@@ -6,6 +6,7 @@ export type AppConfig = {
 	tgxUrls: string[];
 	apiBayUrls: string[];
 	x1337xUrls: string[];
+	katUrls: string[];
 	flareSolverrSessions: number;
 	flareSolverrSessionRefreshMs: number;
 	flareSolverrUrl: string | null;
@@ -39,6 +40,9 @@ export const loadConfig = (): AppConfig => {
 	const x1337xRaw = process.env.X1337X_URL ?? "";
 	const x1337xUrls = parseUrls(x1337xRaw);
 
+	const katRaw = process.env.KAT_URL;
+	const katUrls = katRaw ? parseUrls(katRaw) : [];
+
 	const flareSolverrRaw = process.env.FLARESOLVERR_SESSIONS || "10";
 	const flareSolverrSessions = parsePositiveInt(flareSolverrRaw) ?? 10;
 	const flareSolverrRefreshRaw =
@@ -67,6 +71,7 @@ export const loadConfig = (): AppConfig => {
 		tgxUrls,
 		apiBayUrls,
 		x1337xUrls,
+		katUrls,
 		flareSolverrSessions,
 		flareSolverrSessionRefreshMs,
 		flareSolverrUrl,

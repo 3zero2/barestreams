@@ -42,6 +42,7 @@ docker compose -f docker-compose.test.yml up --abort-on-container-exit --build
 - `TGX_URL`: Comma-separated list of TorrentGalaxy base URLs to try in order.
 - `APIBAY_URL`: Comma-separated list of ApiBay base URLs to try in order.
 - `X1337X_URL`: Comma-separated list of 1337x base URLs to try in order.
+- `KAT_URL`: Comma-separated list of Kickass base URLs to try in order.
 - `FLARESOLVERR_URL`: FlareSolverr base URL (optional).
 - `FLARESOLVERR_SESSIONS`: Maximum FlareSolverr sessions per scraper (optional).
 - `FLARESOLVERR_SESSION_REFRESH_MS`: FlareSolverr session refresh interval in ms (optional).
@@ -57,6 +58,7 @@ Remove a scraper URL env var to disable it (for example, omit `EZTV_URL`).
 | TorrentGalaxy | `TGX_URL` | Movies, Series |
 | The Pirate Bay (ApiBay) | `APIBAY_URL` | Movies, Series |
 | 1337x | `X1337X_URL` | Movies, Series |
+| Kickass | `KAT_URL` | Movies, Series |
 
 On startup, the addon probes each scraper front page; if a scraper returns a 401/403, it retries via FlareSolverr and sticks to FlareSolverr for the rest of the process. FlareSolverr is used to bypass Cloudflare checks when detected.
 

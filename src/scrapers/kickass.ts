@@ -1,4 +1,5 @@
 import { load } from "cheerio";
+import type { Cheerio, Element } from "cheerio";
 import type { ParsedStremioId } from "../parsing/stremioId.js";
 import { parseMagnet } from "../parsing/magnet.js";
 import { extractQualityHint } from "../streams/quality.js";
@@ -17,34 +18,30 @@ import { logScraperWarning } from "./logging.js";
 import { shouldAbort, type ScrapeContext } from "./context.js";
 import { extractFilename, parseNumber, parseSizeToBytes } from "./utils.js";
 
-type TorrentGalaxyLink = {
+type KickassLink = {
 	name: string;
 	url: string;
+	magnet: string | null;
 	seeders: number;
 	leechers: number;
-	size: string;
+	sizeLabel: string;
 };
 
-type TorrentGalaxyDetails = {
-	magnetURI?: string;
-	torrentDownload?: string;
-};
-
-const TGX_DETAIL_LIMIT = 20;
+const KAT_DETAIL_LIMIT = 20;
 
 const buildFlareSolverrPoolConfig = (): FlareSolverrPoolConfig | null => {
-	if (config.tgxUrls.length === 0) {
+	if (config.katUrls.length === 0) {
 		return null;
 	}
 	return {
-		key: ScraperKey.Tgx,
-		sessionCount: applyFlareSolverrSessionCap(TGX_DETAIL_LIMIT),
-		warmupUrl: normalizeBaseUrl(config.tgxUrls[0]),
+		key: ScraperKey.Kat,
+		sessionCount: applyFlareSolverrSessionCap(KAT_DETAIL_LIMIT),
+		warmupUrl: normalizeBaseUrl(config.katUrls[0]),
 	};
 };
 
 registerFlareSolverrPoolConfigProvider(
-	ScraperKey.Tgx,
+	ScraperKey.Kat,
 	buildFlareSolverrPoolConfig,
 );
 
@@ -52,109 +49,94 @@ const fetchHtml = (
 	url: string,
 	context: ScrapeContext,
 ): Promise<string | null> =>
-	fetchText(url, { scraper: ScraperKey.Tgx, signal: context.signal });
+	fetchText(url, { scraper: ScraperKey.Kat, signal: context.signal });
 
-const buildSearchUrl = (
-	baseUrl: string,
-	query: string,
-	page: number,
-): string => {
+const buildSearchUrl = (baseUrl: string, query: string): string => {
 	const normalized = normalizeBaseUrl(baseUrl);
-	const params = new URLSearchParams({
-		q: query,
-		category: "lmsearch",
-		page: page.toString(),
-	});
-	return `${normalized}/lmsearch?${params.toString()}`;
+	const encoded = encodeURIComponent(query);
+	return `${normalized}/usearch/${encoded}/`;
+};
+
+const extractMagnetFromRow = ($row: Cheerio<Element>): string | null => {
+	const magnet =
+		$row.find("a[href^='magnet:']").first().attr("href") ??
+		$row.find("a.imagnet").first().attr("href");
+	return magnet ?? null;
 };
 
 const parseSearchResults = (
 	html: string,
 	baseUrl: string,
 	limit: number,
-): TorrentGalaxyLink[] => {
+): KickassLink[] => {
 	const $ = load(html);
-	const results: TorrentGalaxyLink[] = [];
-	const rows = $(".table-list-wrap tbody tr");
+	const results: KickassLink[] = [];
+	const rows = $("tr.odd, tr.even");
 	rows.each((_, element) => {
 		if (results.length >= limit) {
 			return;
 		}
-		const anchor = $(element).find("td .tt-name a").eq(0);
+		const row = $(element);
+		const anchor = row.find("a.cellMainLink").first();
 		const name = anchor.text().trim();
 		const href = anchor.attr("href");
-		if (!href) {
+		if (!href || !name) {
 			return;
 		}
 		const url = new URL(href, baseUrl).toString();
-		const tds = $(element).find("td");
-		const size = $(tds[2]).text().trim();
+		const tds = row.find("td.center");
+		const sizeLabel = $(tds[0]).text().trim();
 		const seeders = parseNumber($(tds[3]).text());
 		const leechers = parseNumber($(tds[4]).text());
+		const magnet = extractMagnetFromRow(row);
 		results.push({
 			name,
 			url,
+			magnet,
 			seeders,
 			leechers,
-			size,
+			sizeLabel,
 		});
 	});
 	return results;
 };
 
-const searchTorrentGalaxy = async (
+const searchKickass = async (
 	baseUrl: string,
 	query: string,
 	limit: number,
 	context: ScrapeContext,
-): Promise<TorrentGalaxyLink[]> => {
-	const results: TorrentGalaxyLink[] = [];
-	const normalizedBase = normalizeBaseUrl(baseUrl);
-	let page = 1;
-	while (results.length < limit && !shouldAbort(context)) {
-		const html = await fetchHtml(
-			buildSearchUrl(normalizedBase, query, page),
-			context,
-		);
-		if (!html) {
-			break;
-		}
-		const batch = parseSearchResults(
-			html,
-			normalizedBase,
-			limit - results.length,
-		);
-		if (batch.length === 0) {
-			break;
-		}
-		results.push(...batch);
-		page += 1;
+): Promise<KickassLink[]> => {
+	const html = await fetchHtml(buildSearchUrl(baseUrl, query), context);
+	if (!html) {
+		return [];
 	}
-	return results;
+	return parseSearchResults(html, baseUrl, limit);
 };
 
-const fetchTorrentDetails = async (
+const fetchTorrentMagnet = async (
 	url: string,
 	context: ScrapeContext,
-): Promise<TorrentGalaxyDetails | null> => {
+): Promise<string | null> => {
 	const html = await fetchHtml(url, context);
 	if (!html) {
 		return null;
 	}
 	const $ = load(html);
-	const magnetURI = $("a[href^='magnet:?']").attr("href");
-	const torrentDownload = $("a[href$='.torrent']").attr("href");
-	const resolvedDownload = torrentDownload
-		? new URL(torrentDownload, url).toString()
-		: undefined;
-	return { magnetURI, torrentDownload: resolvedDownload };
+	const magnet =
+		$("a.kaGiantButton").attr("href") ??
+		$("a[href^='magnet:']").first().attr("href") ??
+		$("a.siteButton.giantIcon.magnetlinkButton").attr("href");
+	return magnet ?? null;
 };
 
 const buildBehaviorHints = (
-	link: TorrentGalaxyLink,
+	link: KickassLink,
 ): Stream["behaviorHints"] | undefined => {
 	const hints: Stream["behaviorHints"] = {};
-	const sizeBytes = link.size ? parseSizeToBytes(link.size) : null;
+	const sizeBytes = link.sizeLabel
+		? parseSizeToBytes(link.sizeLabel)
+		: null;
 	if (sizeBytes && sizeBytes > 0) {
 		hints.videoSize = sizeBytes;
 	}
@@ -165,29 +147,29 @@ const buildBehaviorHints = (
 	return Object.keys(hints).length > 0 ? hints : undefined;
 };
 
-const dedupeLinks = (links: TorrentGalaxyLink[]): TorrentGalaxyLink[] => {
+const dedupeLinks = (links: KickassLink[]): KickassLink[] => {
 	const seen = new Set<string>();
-	const results: TorrentGalaxyLink[] = [];
+	const results: KickassLink[] = [];
 	for (const link of links) {
-		if (seen.has(link.url)) {
+		const key = link.magnet ?? link.url;
+		if (!key || seen.has(key)) {
 			continue;
 		}
-		seen.add(link.url);
+		seen.add(key);
 		results.push(link);
 	}
 	return results;
 };
 
-const sortBySeedersDesc = (
-	a: TorrentGalaxyLink,
-	b: TorrentGalaxyLink,
-): number => b.seeders - a.seeders;
+const sortBySeedersDesc = (a: KickassLink, b: KickassLink): number =>
+	b.seeders - a.seeders;
 
-export const scrapeTorrentGalaxyStreams = async (
+export const scrapeKickassStreams = async (
 	parsed: ParsedStremioId,
+	type: "movie" | "series",
 	context: ScrapeContext,
 ): Promise<StreamResponse> => {
-	if (config.tgxUrls.length === 0 || shouldAbort(context)) {
+	if (config.katUrls.length === 0 || shouldAbort(context)) {
 		return { streams: [] };
 	}
 	const { baseTitle, query, fallbackQuery, episodeSuffix } =
@@ -195,16 +177,15 @@ export const scrapeTorrentGalaxyStreams = async (
 	if (shouldAbort(context)) {
 		return { streams: [] };
 	}
-	const links: TorrentGalaxyLink[] = [];
-
-	for (const baseUrl of config.tgxUrls) {
-		if (links.length >= TGX_DETAIL_LIMIT || shouldAbort(context)) {
+	const links: KickassLink[] = [];
+	for (const baseUrl of config.katUrls) {
+		if (links.length >= KAT_DETAIL_LIMIT || shouldAbort(context)) {
 			break;
 		}
-		const batch = await searchTorrentGalaxy(
+		const batch = await searchKickass(
 			baseUrl,
 			query,
-			TGX_DETAIL_LIMIT - links.length,
+			KAT_DETAIL_LIMIT - links.length,
 			context,
 		);
 		links.push(...batch);
@@ -212,14 +193,14 @@ export const scrapeTorrentGalaxyStreams = async (
 
 	let filteredLinks = links;
 	if (links.length === 0 && fallbackQuery && !shouldAbort(context)) {
-		for (const baseUrl of config.tgxUrls) {
-			if (filteredLinks.length >= TGX_DETAIL_LIMIT || shouldAbort(context)) {
+		for (const baseUrl of config.katUrls) {
+			if (filteredLinks.length >= KAT_DETAIL_LIMIT || shouldAbort(context)) {
 				break;
 			}
-			const batch = await searchTorrentGalaxy(
+			const batch = await searchKickass(
 				baseUrl,
 				fallbackQuery,
-				TGX_DETAIL_LIMIT - filteredLinks.length,
+				KAT_DETAIL_LIMIT - filteredLinks.length,
 				context,
 			);
 			filteredLinks.push(...batch);
@@ -234,24 +215,26 @@ export const scrapeTorrentGalaxyStreams = async (
 
 	const uniqueLinks = dedupeLinks(filteredLinks);
 	const sortedLinks = uniqueLinks.slice().sort(sortBySeedersDesc);
+	const topLinks = sortedLinks.slice(0, KAT_DETAIL_LIMIT);
 	if (shouldAbort(context)) {
 		return { streams: [] };
 	}
-	const detailResults = await Promise.allSettled(
-		sortedLinks.map((link) => fetchTorrentDetails(link.url, context)),
+	const magnetResults = await Promise.allSettled(
+		topLinks.map(async (link) => {
+			if (link.magnet) {
+				return link.magnet;
+			}
+			return fetchTorrentMagnet(link.url, context);
+		}),
 	);
 
-	const streams = sortedLinks
+	const streams = topLinks
 		.map((link, index) => {
-			const detailResult = detailResults[index];
-			if (detailResult.status !== "fulfilled") {
+			const magnetResult = magnetResults[index];
+			if (magnetResult.status !== "fulfilled") {
 				return null;
 			}
-			const details = detailResult.value;
-			if (!details) {
-				return null;
-			}
-			const magnet = details.magnetURI;
+			const magnet = magnetResult.value;
 			if (!magnet) {
 				return null;
 			}
@@ -260,17 +243,19 @@ export const scrapeTorrentGalaxyStreams = async (
 				return null;
 			}
 			const quality = extractQualityHint(link.name);
-			const sizeBytes = link.size ? parseSizeToBytes(link.size) : null;
+			const sizeBytes = link.sizeLabel
+				? parseSizeToBytes(link.sizeLabel)
+				: null;
 			const display = formatStreamDisplay({
 				imdbTitle: baseTitle,
 				season: parsed.season,
 				episode: parsed.episode,
 				torrentName: link.name,
 				quality,
-				source: "TGX",
+				source: "KAT",
 				seeders: link.seeders,
 				sizeBytes,
-				sizeLabel: link.size,
+				sizeLabel: link.sizeLabel || null,
 			});
 			return {
 				name: display.name,
@@ -286,7 +271,8 @@ export const scrapeTorrentGalaxyStreams = async (
 		);
 
 	if (streams.length === 0 && !shouldAbort(context)) {
-		logScraperWarning("TorrentGalaxy", "no results", {
+		logScraperWarning("Kickass", "no results", {
+			type,
 			baseTitle,
 			query,
 			fallbackQuery,

@@ -4,4 +4,5 @@ export enum ScraperKey {
 	Tgx = "tgx",
 	Tpb = "tpb",
 	Yts = "yts",
+	Kat = "kat",
 }

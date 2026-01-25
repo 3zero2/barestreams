@@ -15,6 +15,7 @@ import { ScraperKey } from "./keys.js";
 import { buildQueries, matchesEpisode } from "./query.js";
 import { logScraperWarning } from "./logging.js";
 import { shouldAbort, type ScrapeContext } from "./context.js";
+import { extractFilename, parseNumber, parseSizeToBytes } from "./utils.js";
 
 type X1337xLink = {
 	name: string;
@@ -63,11 +64,6 @@ const buildSearchUrl = (
 	const normalized = normalizeBaseUrl(baseUrl);
 	const encoded = encodeURIComponent(query);
 	return `${normalized}/search/${encoded}/${page}/`;
-};
-
-const parseNumber = (value: string): number => {
-	const parsed = Number(value.replace(/,/g, "").trim());
-	return Number.isFinite(parsed) ? parsed : 0;
 };
 
 const extractSizeLabel = (value: string): string => {
@@ -146,42 +142,6 @@ const fetchTorrentDetails = async (
 		$("a[href^='magnet:?']").attr("href") ??
 		$("a[href^='magnet:']").attr("href");
 	return { magnetURI };
-};
-
-const parseSizeToBytes = (rawSize: string): number | null => {
-	const match = rawSize
-		.trim()
-		.match(/([\d.]+)\s*(B|KB|MB|GB|TB|KIB|MIB|GIB|TIB)/i);
-	if (!match) {
-		return null;
-	}
-	const value = Number.parseFloat(match[1]);
-	if (!Number.isFinite(value)) {
-		return null;
-	}
-	const unit = match[2].toUpperCase();
-	const base = unit.endsWith("IB") ? 1024 : 1024;
-	const multipliers: Record<string, number> = {
-		B: 1,
-		KB: base,
-		MB: base ** 2,
-		GB: base ** 3,
-		TB: base ** 4,
-		KIB: 1024,
-		MIB: 1024 ** 2,
-		GIB: 1024 ** 3,
-		TIB: 1024 ** 4,
-	};
-	const multiplier = multipliers[unit];
-	if (!multiplier) {
-		return null;
-	}
-	return Math.round(value * multiplier);
-};
-
-const extractFilename = (name: string): string | undefined => {
-	const match = name.match(/\b([^\s/\\]+?\.(?:mkv|mp4|avi|ts|m4v))\b/i);
-	return match?.[1];
 };
 
 const buildBehaviorHints = (
