@@ -1,0 +1,6 @@
+services:
+  barestreams:
+    environment:
+      - FLARESOLVERR_SESSIONS=5
+    volumes:
+      - /home/pi/AppData/barestreams:/app/data/imdb
