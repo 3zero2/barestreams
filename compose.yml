@@ -1,21 +1,21 @@
 services:
-  barestreams_redis:
-    container_name: barestreams_redis
+  redis:
     image: redis:7-alpine
+    container_name: barestreams_redis
 
-  barestreams_flaresolverr:
-    container_name: barestreams_flaresolverr
+  flaresolverr:
     image: ghcr.io/flaresolverr/flaresolverr:latest
+    container_name: barestreams_flaresolverr
     environment:
       - LOG_LEVEL=info
 
   barestreams:
-    build: .
     container_name: barestreams
+    build: .
     depends_on:
-      barestreams_redis:
+      redis:
         condition: service_started
-      barestreams_flaresolverr:
+      flaresolverr:
         condition: service_started
     command: ["sh", "-c", "sleep 5 && node dist/index.js"]
     ports:
@@ -32,6 +32,5 @@ services:
       - KAT_URL=https://katcr.to,https://kickasstorrents.to
       - FLARESOLVERR_SESSIONS=5
       - FLARESOLVERR_URL=http://flaresolverr:8191
-      
     volumes:
       - ./data/imdb:/app/data/imdb
