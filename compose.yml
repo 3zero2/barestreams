@@ -5,14 +5,14 @@ services:
 
   barestreams_flaresolverr:
     container_name: barestreams_flaresolverr
-	image: ghcr.io/flaresolverr/flaresolverr:latest
-	environment:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    environment:
       - LOG_LEVEL=info
 
   barestreams:
     build: .
-	container_name: barestreams
-	depends_on:
+    container_name: barestreams
+    depends_on:
       barestreams_redis:
         condition: service_started
       barestreams_flaresolverr:
