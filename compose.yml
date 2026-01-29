@@ -1,18 +1,21 @@
 services:
-  redis:
+  barestreams_redis:
+  	container_name: barestreams_redis
     image: redis:7-alpine
 
-  flaresolverr:
+  barestreams_flaresolverr:
+  	container_name: barestreams_flaresolverr
     image: ghcr.io/flaresolverr/flaresolverr:latest
     environment:
       - LOG_LEVEL=info
 
   barestreams:
     build: .
+	container_name: barestreams
     depends_on:
-      redis:
+      barestreams_redis:
         condition: service_started
-      flaresolverr:
+      barestreams_flaresolverr:
         condition: service_started
     command: ["sh", "-c", "sleep 5 && node dist/index.js"]
     ports:
