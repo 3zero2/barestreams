@@ -1,18 +1,18 @@
 services:
   barestreams_redis:
-  	container_name: barestreams_redis
+    container_name: barestreams_redis
     image: redis:7-alpine
 
   barestreams_flaresolverr:
-  	container_name: barestreams_flaresolverr
-    image: ghcr.io/flaresolverr/flaresolverr:latest
-    environment:
+    container_name: barestreams_flaresolverr
+	image: ghcr.io/flaresolverr/flaresolverr:latest
+	environment:
       - LOG_LEVEL=info
 
   barestreams:
     build: .
 	container_name: barestreams
-    depends_on:
+	depends_on:
       barestreams_redis:
         condition: service_started
       barestreams_flaresolverr:
