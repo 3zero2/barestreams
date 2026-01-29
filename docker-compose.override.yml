@@ -1,5 +1,6 @@
 services:
   barestreams:
+  	container_name: barestreams
     environment:
       - FLARESOLVERR_SESSIONS=5
     volumes:
